@@ -27,14 +27,14 @@ def run_cli(args: list[str], **kwargs: Any) -> Result:
     try:
         # Try overriding the property at the instance level.
         result.__dict__["output"] = clean_output
-    except Exception:
+    except Exception:  # noqa: S110
         # If that fails (e.g. __dict__ doesn't work for this object), we'll just
         # have to live with a slightly messy result object, but we've tried.
         pass
 
     # Re-verify clean_output is what we want.
     # We can also just attach it as a new attribute if the property is stubborn.
-    setattr(result, "clean_output", clean_output)
+    result.clean_output = clean_output
     return result
 
 
