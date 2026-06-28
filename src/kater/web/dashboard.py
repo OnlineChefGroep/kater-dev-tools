@@ -715,27 +715,33 @@ _HTML_SHELL_TOP = r"""
     </div>
   </div>
 
-  <div class="nav-tabs">
-    <button class="tab active" data-view="dashboard"
+  <div class="nav-tabs" role="tablist">
+    <button class="tab active" id="tab-dashboard" data-view="dashboard"
+      role="tab" aria-selected="true" aria-controls="view-dashboard"
       onclick="switchView('dashboard')">Dashboard
       <span class="tab-num">1</span></button>
-    <button class="tab" data-view="catalog"
+    <button class="tab" id="tab-catalog" data-view="catalog"
+      role="tab" aria-selected="false" aria-controls="view-catalog"
       onclick="switchView('catalog')">Catalog
       <span class="tab-num">2</span></button>
-    <button class="tab" data-view="evals"
+    <button class="tab" id="tab-evals" data-view="evals"
+      role="tab" aria-selected="false" aria-controls="view-evals"
       onclick="switchView('evals')">Evals
       <span class="tab-num">3</span></button>
-    <button class="tab" data-view="deploy"
+    <button class="tab" id="tab-deploy" data-view="deploy"
+      role="tab" aria-selected="false" aria-controls="view-deploy"
       onclick="switchView('deploy')">Deploy
       <span class="tab-num">4</span></button>
-    <button class="tab" data-view="settings"
+    <button class="tab" id="tab-settings" data-view="settings"
+      role="tab" aria-selected="false" aria-controls="view-settings"
       onclick="switchView('settings')">Settings
       <span class="tab-num">5</span></button>
   </div>
 """
 
 _VIEW_DASHBOARD = r"""
-  <div class="view active" id="view-dashboard">
+  <div class="view active" id="view-dashboard" role="tabpanel"
+    aria-labelledby="tab-dashboard" tabindex="0">
   <div class="bento">
     <div class="tile constellation-tile">
       <div class="tile-header">
@@ -790,7 +796,7 @@ _VIEW_DASHBOARD = r"""
 """
 
 _VIEW_CATALOG = r"""
-  <div class="view" id="view-catalog">
+  <div class="view" id="view-catalog" role="tabpanel" aria-labelledby="tab-catalog" tabindex="0">
     <div class="view-header">
       <span class="view-title">Server Catalog</span>
       <span class="tile-title" id="catalog-count">0 servers</span>
@@ -798,7 +804,7 @@ _VIEW_CATALOG = r"""
     <div class="view-scroll">
       <div class="catalog-toolbar">
         <input class="form-input" id="catalog-search" type="search"
-          placeholder="Zoek servers (bijv. search, github)..." autocomplete="off"
+          placeholder="Search servers (e.g. github, search)..." autocomplete="off"
           aria-label="Search servers">
       </div>
       <div class="server-grid" id="catalog-grid">
@@ -809,7 +815,7 @@ _VIEW_CATALOG = r"""
 """
 
 _VIEW_EVALS = r"""
-  <div class="view" id="view-evals">
+  <div class="view" id="view-evals" role="tabpanel" aria-labelledby="tab-evals" tabindex="0">
     <div class="view-header">
       <span class="view-title">Tool Performance</span>
     </div>
@@ -826,7 +832,7 @@ _VIEW_EVALS = r"""
 """
 
 _VIEW_DEPLOY = r"""
-  <div class="view" id="view-deploy">
+  <div class="view" id="view-deploy" role="tabpanel" aria-labelledby="tab-deploy" tabindex="0">
     <div class="view-header">
       <span class="view-title">Deployment Configs</span>
     </div>
@@ -845,7 +851,7 @@ _VIEW_DEPLOY = r"""
 """
 
 _VIEW_SETTINGS = r"""
-  <div class="view" id="view-settings">
+  <div class="view" id="view-settings" role="tabpanel" aria-labelledby="tab-settings" tabindex="0">
     <div class="view-header">
       <span class="view-title">Settings</span>
     </div>
@@ -2103,7 +2109,9 @@ function switchView(name) {
     v.classList.toggle('active', v.id === 'view-' + name);
   });
   document.querySelectorAll('.nav-tabs .tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.view === name);
+    const active = t.dataset.view === name;
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', active ? 'true' : 'false');
   });
   loadViewData(name);
 }
@@ -2321,7 +2329,15 @@ function copyDeployCode() {
   const text = document.getElementById('deploy-code').textContent || '';
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(
-      () => toast('copied to clipboard', 'success'),
+      () => {
+        toast('copied to clipboard', 'success');
+        const btn = document.querySelector('.code-copy');
+        if (btn && btn.textContent !== 'Copied!') {
+          const oldText = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => { btn.textContent = oldText; }, 2000);
+        }
+      },
       () => toast('clipboard access denied', 'error')
     );
   } else {
