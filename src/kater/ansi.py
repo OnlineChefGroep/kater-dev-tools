@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import os
 import sys
 
-_USE_COLOR = sys.stdout.isatty()
+_USE_COLOR = sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
 
 RESET = "\033[0m" if _USE_COLOR else ""
 BOLD = "\033[1m" if _USE_COLOR else ""

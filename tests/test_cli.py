@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from typer.testing import CliRunner
 
@@ -101,8 +102,11 @@ def test_chain_run_unknown() -> None:
 def test_mcp_serve_profile_flag() -> None:
     result = runner.invoke(app, ["mcp", "serve", "--help"], env={"NO_COLOR": "1"})
 
+    # Strip ANSI escape sequences from output for robust matching
+    clean_output = re.sub(r"\x1b\[[0-9;]*[mGKF]", "", result.output)
+
     assert result.exit_code == 0
-    assert "--profile" in result.output
+    assert "--profile" in clean_output
 
 
 def test_version() -> None:
