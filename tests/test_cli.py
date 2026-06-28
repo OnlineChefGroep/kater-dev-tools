@@ -99,7 +99,7 @@ def test_chain_run_unknown() -> None:
 
 
 def test_mcp_serve_profile_flag() -> None:
-    result = runner.invoke(app, ["mcp", "serve", "--help"])
+    result = runner.invoke(app, ["mcp", "serve", "--help"], env={"NO_COLOR": "1"})
 
     assert result.exit_code == 0
     assert "--profile" in result.output

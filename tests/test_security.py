@@ -225,8 +225,12 @@ def test_body_size_limit(api_server):
     )
     try:
         urllib.request.urlopen(req)
-    except urllib.error.HTTPError as e:
-        assert e.code in (400, 413)
+    except (urllib.error.HTTPError, urllib.error.URLError) as e:
+        # HTTPError (e.g. 413) is expected, but URLError (Broken Pipe) can
+        # also occur if the server closes the connection before we finish
+        # sending the oversized body.
+        if isinstance(e, urllib.error.HTTPError):
+            assert e.code in (400, 413)
         return
     pytest.fail("Expected body size error")
 
