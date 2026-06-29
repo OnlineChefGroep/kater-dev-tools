@@ -87,7 +87,7 @@ All commands support `--json` for structured output.
 |--------|-----------|----------|
 | github | stdio | ops, code |
 | gitlab | stdio | ops, code |
-| linear | http | ops |
+| linear | http (`/mcp`) | ops |
 | sentry | http | ops |
 | exa | http | research, web |
 | firecrawl | stdio | research, web |

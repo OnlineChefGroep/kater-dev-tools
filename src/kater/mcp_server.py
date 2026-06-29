@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from importlib import import_module
 from typing import Any
 from urllib.parse import parse_qs
@@ -35,29 +34,28 @@ def create_server(*, profile: str = "core") -> Any:
 
 def register_proxy_tools(server: Any, *, proxy: Any, profile: str) -> None:
     del profile
-    proxy_enabled = os.environ.get("KATER_PROXY", "0") == "1"
-    if not proxy_enabled:
-        _register_proxy_status_tool(server)
-        return
-
     try:
         for tool_def in proxy.list_tools():
             _make_proxy_tool(server, tool_def, proxy)
     except Exception as exc:
         _log.warning("proxy tool registration failed: %s", exc)
-        _register_proxy_status_tool(server)
+        _register_proxy_status_tool(server, proxy=proxy, enabled=False)
         return
 
-    _register_proxy_status_tool(server)
+    _register_proxy_status_tool(server, proxy=proxy, enabled=True)
 
 
-def _register_proxy_status_tool(server: Any) -> None:
+def _register_proxy_status_tool(
+    server: Any, *, proxy: Any | None = None, enabled: bool = False
+) -> None:
     @server.tool(name="kater_proxy_status")
     def proxy_status() -> dict:
+        if proxy is None:
+            return {"enabled": enabled, "backends": 0, "tools": 0}
         return {
-            "enabled": os.environ.get("KATER_PROXY", "0") == "1",
-            "backends": 0,
-            "tools": 0,
+            "enabled": enabled,
+            "backends": proxy.backend_count(),
+            "tools": proxy.tool_count(),
         }
 
 
