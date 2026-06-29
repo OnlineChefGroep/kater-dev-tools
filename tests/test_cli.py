@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from typer.testing import CliRunner
 
@@ -9,11 +10,16 @@ from kater.cli import app
 runner = CliRunner()
 
 
+def strip_ansi(text: str) -> str:
+    return re.compile(r"\x1b\[[0-9;]*m").sub("", text)
+
+
 def test_cli_help_starts() -> None:
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0
-    assert "Kater" in result.output or "Developer MCP gateway" in result.output
+    output = strip_ansi(result.output)
+    assert "Kater" in output or "Developer MCP gateway" in output
 
 
 def test_doctor_json() -> None:
@@ -102,7 +108,7 @@ def test_mcp_serve_profile_flag() -> None:
     result = runner.invoke(app, ["mcp", "serve", "--help"])
 
     assert result.exit_code == 0
-    assert "--profile" in result.output
+    assert "--profile" in strip_ansi(result.output)
 
 
 def test_version() -> None:
@@ -169,8 +175,9 @@ def test_init_creates_kater_dir(tmp_path) -> None:
 def test_serve_help() -> None:
     result = runner.invoke(app, ["serve", "--help"])
     assert result.exit_code == 0
-    assert "--api-port" in result.output
-    assert "--mcp-port" in result.output
+    output = strip_ansi(result.output)
+    assert "--api-port" in output
+    assert "--mcp-port" in output
 
 
 def test_enable_server() -> None:
