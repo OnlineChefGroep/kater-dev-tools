@@ -715,27 +715,32 @@ _HTML_SHELL_TOP = r"""
     </div>
   </div>
 
-  <div class="nav-tabs">
-    <button class="tab active" data-view="dashboard"
+  <div class="nav-tabs" role="tablist">
+    <button class="tab active" data-view="dashboard" id="tab-dashboard" role="tab"
+      aria-selected="true" aria-controls="view-dashboard"
       onclick="switchView('dashboard')">Dashboard
       <span class="tab-num">1</span></button>
-    <button class="tab" data-view="catalog"
+    <button class="tab" data-view="catalog" id="tab-catalog" role="tab"
+      aria-selected="false" aria-controls="view-catalog"
       onclick="switchView('catalog')">Catalog
       <span class="tab-num">2</span></button>
-    <button class="tab" data-view="evals"
+    <button class="tab" data-view="evals" id="tab-evals" role="tab"
+      aria-selected="false" aria-controls="view-evals"
       onclick="switchView('evals')">Evals
       <span class="tab-num">3</span></button>
-    <button class="tab" data-view="deploy"
+    <button class="tab" data-view="deploy" id="tab-deploy" role="tab"
+      aria-selected="false" aria-controls="view-deploy"
       onclick="switchView('deploy')">Deploy
       <span class="tab-num">4</span></button>
-    <button class="tab" data-view="settings"
+    <button class="tab" data-view="settings" id="tab-settings" role="tab"
+      aria-selected="false" aria-controls="view-settings"
       onclick="switchView('settings')">Settings
       <span class="tab-num">5</span></button>
   </div>
 """
 
 _VIEW_DASHBOARD = r"""
-  <div class="view active" id="view-dashboard">
+  <div class="view active" id="view-dashboard" role="tabpanel" aria-labelledby="tab-dashboard">
   <div class="bento">
     <div class="tile constellation-tile">
       <div class="tile-header">
@@ -790,7 +795,7 @@ _VIEW_DASHBOARD = r"""
 """
 
 _VIEW_CATALOG = r"""
-  <div class="view" id="view-catalog">
+  <div class="view" id="view-catalog" role="tabpanel" aria-labelledby="tab-catalog">
     <div class="view-header">
       <span class="view-title">Server Catalog</span>
       <span class="tile-title" id="catalog-count">0 servers</span>
@@ -809,7 +814,7 @@ _VIEW_CATALOG = r"""
 """
 
 _VIEW_EVALS = r"""
-  <div class="view" id="view-evals">
+  <div class="view" id="view-evals" role="tabpanel" aria-labelledby="tab-evals">
     <div class="view-header">
       <span class="view-title">Tool Performance</span>
     </div>
@@ -826,7 +831,7 @@ _VIEW_EVALS = r"""
 """
 
 _VIEW_DEPLOY = r"""
-  <div class="view" id="view-deploy">
+  <div class="view" id="view-deploy" role="tabpanel" aria-labelledby="tab-deploy">
     <div class="view-header">
       <span class="view-title">Deployment Configs</span>
     </div>
@@ -845,7 +850,7 @@ _VIEW_DEPLOY = r"""
 """
 
 _VIEW_SETTINGS = r"""
-  <div class="view" id="view-settings">
+  <div class="view" id="view-settings" role="tabpanel" aria-labelledby="tab-settings">
     <div class="view-header">
       <span class="view-title">Settings</span>
     </div>
@@ -2103,7 +2108,9 @@ function switchView(name) {
     v.classList.toggle('active', v.id === 'view-' + name);
   });
   document.querySelectorAll('.nav-tabs .tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.view === name);
+    const isActive = t.dataset.view === name;
+    t.classList.toggle('active', isActive);
+    t.setAttribute('aria-selected', String(isActive));
   });
   loadViewData(name);
 }
