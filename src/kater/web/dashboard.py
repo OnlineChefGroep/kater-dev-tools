@@ -715,27 +715,33 @@ _HTML_SHELL_TOP = r"""
     </div>
   </div>
 
-  <div class="nav-tabs">
-    <button class="tab active" data-view="dashboard"
+  <div class="nav-tabs" role="tablist">
+    <button class="tab active" id="tab-dashboard" role="tab" aria-selected="true"
+      aria-controls="view-dashboard" data-view="dashboard"
       onclick="switchView('dashboard')">Dashboard
       <span class="tab-num">1</span></button>
-    <button class="tab" data-view="catalog"
-      onclick="switchView('catalog')">Catalog
+    <button class="tab" id="tab-catalog" role="tab" aria-selected="false"
+      aria-controls="view-catalog" data-view="catalog"
+      onclick="switchView('catalog')" tabindex="-1">Catalog
       <span class="tab-num">2</span></button>
-    <button class="tab" data-view="evals"
-      onclick="switchView('evals')">Evals
+    <button class="tab" id="tab-evals" role="tab" aria-selected="false"
+      aria-controls="view-evals" data-view="evals"
+      onclick="switchView('evals')" tabindex="-1">Evals
       <span class="tab-num">3</span></button>
-    <button class="tab" data-view="deploy"
-      onclick="switchView('deploy')">Deploy
+    <button class="tab" id="tab-deploy" role="tab" aria-selected="false"
+      aria-controls="view-deploy" data-view="deploy"
+      onclick="switchView('deploy')" tabindex="-1">Deploy
       <span class="tab-num">4</span></button>
-    <button class="tab" data-view="settings"
-      onclick="switchView('settings')">Settings
+    <button class="tab" id="tab-settings" role="tab" aria-selected="false"
+      aria-controls="view-settings" data-view="settings"
+      onclick="switchView('settings')" tabindex="-1">Settings
       <span class="tab-num">5</span></button>
   </div>
 """
 
 _VIEW_DASHBOARD = r"""
-  <div class="view active" id="view-dashboard">
+  <div class="view active" id="view-dashboard" role="tabpanel"
+    aria-labelledby="tab-dashboard" tabindex="0">
   <div class="bento">
     <div class="tile constellation-tile">
       <div class="tile-header">
@@ -790,7 +796,7 @@ _VIEW_DASHBOARD = r"""
 """
 
 _VIEW_CATALOG = r"""
-  <div class="view" id="view-catalog">
+  <div class="view" id="view-catalog" role="tabpanel" aria-labelledby="tab-catalog" tabindex="0">
     <div class="view-header">
       <span class="view-title">Server Catalog</span>
       <span class="tile-title" id="catalog-count">0 servers</span>
@@ -798,7 +804,7 @@ _VIEW_CATALOG = r"""
     <div class="view-scroll">
       <div class="catalog-toolbar">
         <input class="form-input" id="catalog-search" type="search"
-          placeholder="Zoek servers (bijv. search, github)..." autocomplete="off"
+          placeholder="Search servers (e.g. search, github)..." autocomplete="off"
           aria-label="Search servers">
       </div>
       <div class="server-grid" id="catalog-grid">
@@ -809,7 +815,7 @@ _VIEW_CATALOG = r"""
 """
 
 _VIEW_EVALS = r"""
-  <div class="view" id="view-evals">
+  <div class="view" id="view-evals" role="tabpanel" aria-labelledby="tab-evals" tabindex="0">
     <div class="view-header">
       <span class="view-title">Tool Performance</span>
     </div>
@@ -826,7 +832,7 @@ _VIEW_EVALS = r"""
 """
 
 _VIEW_DEPLOY = r"""
-  <div class="view" id="view-deploy">
+  <div class="view" id="view-deploy" role="tabpanel" aria-labelledby="tab-deploy" tabindex="0">
     <div class="view-header">
       <span class="view-title">Deployment Configs</span>
     </div>
@@ -845,7 +851,7 @@ _VIEW_DEPLOY = r"""
 """
 
 _VIEW_SETTINGS = r"""
-  <div class="view" id="view-settings">
+  <div class="view" id="view-settings" role="tabpanel" aria-labelledby="tab-settings" tabindex="0">
     <div class="view-header">
       <span class="view-title">Settings</span>
     </div>
@@ -2103,7 +2109,10 @@ function switchView(name) {
     v.classList.toggle('active', v.id === 'view-' + name);
   });
   document.querySelectorAll('.nav-tabs .tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.view === name);
+    const active = t.dataset.view === name;
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', String(active));
+    t.setAttribute('tabindex', active ? '0' : '-1');
   });
   loadViewData(name);
 }
@@ -2318,10 +2327,18 @@ async function selectDeployFormat(fmt) {
 }
 
 function copyDeployCode() {
+  const btn = document.querySelector('.code-copy');
+  if (btn.disabled) return;
   const text = document.getElementById('deploy-code').textContent || '';
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(
-      () => toast('copied to clipboard', 'success'),
+      () => {
+        const old = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.disabled = true;
+        toast('copied to clipboard', 'success');
+        setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 2000);
+      },
       () => toast('clipboard access denied', 'error')
     );
   } else {
@@ -2366,10 +2383,36 @@ function initKeyboard() {
     }
     const tag = e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
     if (e.key >= '1' && e.key <= '5') {
       const views = ['dashboard', 'catalog', 'evals', 'deploy', 'settings'];
       const v = views[parseInt(e.key) - 1];
       if (v) switchView(v);
+    }
+
+    // ARIA Tab navigation
+    if (e.target.role === 'tab') {
+      const tabs = Array.from(document.querySelectorAll('.nav-tabs .tab'));
+      const idx = tabs.indexOf(e.target);
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = tabs[(idx + 1) % tabs.length];
+        next.focus();
+        switchView(next.dataset.view);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
+        prev.focus();
+        switchView(prev.dataset.view);
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        tabs[0].focus();
+        switchView(tabs[0].dataset.view);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        tabs[tabs.length - 1].focus();
+        switchView(tabs[tabs.length - 1].dataset.view);
+      }
     }
   });
 }

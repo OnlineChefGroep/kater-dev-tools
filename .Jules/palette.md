@@ -1,0 +1,3 @@
+## 2026-06-30 - [WAI-ARIA Tabs in Vanilla JS]
+**Learning:** Implementing the WAI-ARIA Tabs pattern in a vanilla JavaScript SPA requires manual synchronization of `role="tablist"`, `role="tab"`, and `role="tabpanel"`. Specifically, roving tabindex (`tabindex="0"` for active, `-1` for inactive) must be updated alongside `aria-selected` to ensure correct keyboard navigation. Mandatory arrow key navigation must be explicitly handled via `keydown` listeners to meet accessibility standards.
+**Action:** Always pair `aria-selected` updates with `tabindex` toggling and implement arrow key navigation when using the Tabs pattern.
