@@ -719,23 +719,23 @@ _HTML_SHELL_TOP = r"""
     <button class="tab active" type="button" data-view="dashboard" id="tab-dashboard" role="tab"
       aria-selected="true" aria-controls="view-dashboard" tabindex="0"
       onclick="switchView('dashboard')">Dashboard
-      <span class="tab-num">1</span></button>
+      <span class="tab-num" aria-hidden="true">1</span></button>
     <button class="tab" type="button" data-view="catalog" id="tab-catalog" role="tab"
       aria-selected="false" aria-controls="view-catalog" tabindex="-1"
       onclick="switchView('catalog')">Catalog
-      <span class="tab-num">2</span></button>
+      <span class="tab-num" aria-hidden="true">2</span></button>
     <button class="tab" type="button" data-view="evals" id="tab-evals" role="tab"
       aria-selected="false" aria-controls="view-evals" tabindex="-1"
       onclick="switchView('evals')">Evals
-      <span class="tab-num">3</span></button>
+      <span class="tab-num" aria-hidden="true">3</span></button>
     <button class="tab" type="button" data-view="deploy" id="tab-deploy" role="tab"
       aria-selected="false" aria-controls="view-deploy" tabindex="-1"
       onclick="switchView('deploy')">Deploy
-      <span class="tab-num">4</span></button>
+      <span class="tab-num" aria-hidden="true">4</span></button>
     <button class="tab" type="button" data-view="settings" id="tab-settings" role="tab"
       aria-selected="false" aria-controls="view-settings" tabindex="-1"
       onclick="switchView('settings')">Settings
-      <span class="tab-num">5</span></button>
+      <span class="tab-num" aria-hidden="true">5</span></button>
   </div>
 """
 
