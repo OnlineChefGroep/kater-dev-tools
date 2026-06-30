@@ -423,10 +423,7 @@ TOOL_SOURCES: tuple[ToolSource, ...] = (
             command="npx",
             args=["-y", "@notionhq/notion-mcp-server"],
             env_template={
-                "OPENAPI_MCP_HEADERS": (
-                    '{"Authorization":"Bearer ${NOTION_API_KEY}",'
-                    '"Notion-Version":"2022-06-28"}'
-                )
+                "OPENAPI_MCP_HEADERS": '{"Authorization":"Bearer ${NOTION_API_KEY}"}'
             },
         ),
     ),
