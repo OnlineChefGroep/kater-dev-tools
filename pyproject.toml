@@ -18,7 +18,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-    "mcp>=1.0.0",
+    "mcp>=1.28.1",
     "pydantic>=2.7",
     "typer>=0.26.8",
 ]
@@ -33,13 +33,13 @@ Security = "https://github.com/OnlineChefGroep/kater-dev-tools/security/policy"
 kater = "kater.cli:app"
 
 [build-system]
-requires = ["uv_build>=0.10.9,<0.11"]
+requires = ["uv_build>=0.11.25,<0.12"]
 build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
-    "ruff>=0.6",
+    "ruff>=0.15.20",
     "mypy>=1.10",
 ]
 
@@ -84,6 +84,7 @@ select = ["E", "F", "I", "UP", "B", "S", "RUF"]
 # declared SSE backends). S310 cannot distinguish that from unsafe file: opens.
 "src/kater/gateway.py" = ["S310"]
 "src/kater/proxy/sse_backend.py" = ["S310"]
+"src/kater/proxy/streamable_http_backend.py" = ["S310"]
 # oauth.py: the field name `token_endpoint_auth_method` contains "token" which
 # trips S105/S107; it is an OAuth method selector, not a credential.
 "src/kater/oauth.py" = ["S105", "S107"]

@@ -9,6 +9,11 @@ from kater.cli import app
 
 runner = CliRunner()
 
+ANSI_RE = re.compile(r"\[([0-9;]*[a-zA-Z])")
+def strip_ansi(text: str) -> str:
+    return ANSI_RE.sub("", text)
+
+
 
 def strip_ansi(text: str) -> str:
     return re.compile(r"\x1b\[[0-9;]*m").sub("", text)
@@ -46,7 +51,7 @@ def test_apply_requires_yes() -> None:
     result = runner.invoke(app, ["doctor", "--apply"])
 
     assert result.exit_code == 2
-    assert "--apply requires --yes" in result.output
+    assert "--apply requires --yes" in strip_ansi(result.output)
 
 
 def test_profiles_json() -> None:
@@ -82,8 +87,8 @@ def test_chains_filtered_by_profile() -> None:
     result = runner.invoke(app, ["chains", "--profile", "utrecht"])
 
     assert result.exit_code == 0
-    assert "utrecht_status" in result.output
-    assert "research_brief" not in result.output
+    assert "utrecht_status" in strip_ansi(result.output)
+    assert "research_brief" not in strip_ansi(result.output)
 
 
 def test_chain_run_research_brief() -> None:
@@ -101,7 +106,7 @@ def test_chain_run_unknown() -> None:
     result = runner.invoke(app, ["chain", "run", "nonexistent"])
 
     assert result.exit_code == 1
-    assert "not found" in result.output
+    assert "not found" in strip_ansi(result.output)
 
 
 def test_mcp_serve_profile_flag() -> None:
@@ -162,7 +167,7 @@ def test_mcp_status_known() -> None:
 def test_mcp_status_unknown() -> None:
     result = runner.invoke(app, ["mcp", "status", "nonexistent"])
     assert result.exit_code == 1
-    assert "unknown" in result.output
+    assert "unknown" in strip_ansi(result.output)
 
 
 def test_init_creates_kater_dir(tmp_path) -> None:
@@ -175,9 +180,8 @@ def test_init_creates_kater_dir(tmp_path) -> None:
 def test_serve_help() -> None:
     result = runner.invoke(app, ["serve", "--help"])
     assert result.exit_code == 0
-    output = strip_ansi(result.output)
-    assert "--api-port" in output
-    assert "--mcp-port" in output
+    assert "--api-port" in strip_ansi(result.output)
+    assert "--mcp-port" in strip_ansi(result.output)
 
 
 def test_enable_server() -> None:
