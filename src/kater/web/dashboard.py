@@ -715,27 +715,27 @@ _HTML_SHELL_TOP = r"""
     </div>
   </div>
 
-  <div class="nav-tabs" role="tablist">
-    <button class="tab active" id="tab-dashboard" role="tab" aria-selected="true"
-      aria-controls="view-dashboard" data-view="dashboard"
+  <div class="nav-tabs" role="tablist" aria-label="Dashboard views">
+    <button class="tab active" type="button" data-view="dashboard" id="tab-dashboard" role="tab"
+      aria-selected="true" aria-controls="view-dashboard" tabindex="0"
       onclick="switchView('dashboard')">Dashboard
-      <span class="tab-num">1</span></button>
-    <button class="tab" id="tab-catalog" role="tab" aria-selected="false"
-      aria-controls="view-catalog" data-view="catalog"
-      onclick="switchView('catalog')" tabindex="-1">Catalog
-      <span class="tab-num">2</span></button>
-    <button class="tab" id="tab-evals" role="tab" aria-selected="false"
-      aria-controls="view-evals" data-view="evals"
-      onclick="switchView('evals')" tabindex="-1">Evals
-      <span class="tab-num">3</span></button>
-    <button class="tab" id="tab-deploy" role="tab" aria-selected="false"
-      aria-controls="view-deploy" data-view="deploy"
-      onclick="switchView('deploy')" tabindex="-1">Deploy
-      <span class="tab-num">4</span></button>
-    <button class="tab" id="tab-settings" role="tab" aria-selected="false"
-      aria-controls="view-settings" data-view="settings"
-      onclick="switchView('settings')" tabindex="-1">Settings
-      <span class="tab-num">5</span></button>
+      <span class="tab-num" aria-hidden="true">1</span></button>
+    <button class="tab" type="button" data-view="catalog" id="tab-catalog" role="tab"
+      aria-selected="false" aria-controls="view-catalog" tabindex="-1"
+      onclick="switchView('catalog')">Catalog
+      <span class="tab-num" aria-hidden="true">2</span></button>
+    <button class="tab" type="button" data-view="evals" id="tab-evals" role="tab"
+      aria-selected="false" aria-controls="view-evals" tabindex="-1"
+      onclick="switchView('evals')">Evals
+      <span class="tab-num" aria-hidden="true">3</span></button>
+    <button class="tab" type="button" data-view="deploy" id="tab-deploy" role="tab"
+      aria-selected="false" aria-controls="view-deploy" tabindex="-1"
+      onclick="switchView('deploy')">Deploy
+      <span class="tab-num" aria-hidden="true">4</span></button>
+    <button class="tab" type="button" data-view="settings" id="tab-settings" role="tab"
+      aria-selected="false" aria-controls="view-settings" tabindex="-1"
+      onclick="switchView('settings')">Settings
+      <span class="tab-num" aria-hidden="true">5</span></button>
   </div>
 """
 
@@ -796,7 +796,8 @@ _VIEW_DASHBOARD = r"""
 """
 
 _VIEW_CATALOG = r"""
-  <div class="view" id="view-catalog" role="tabpanel" aria-labelledby="tab-catalog" tabindex="0">
+  <div class="view" id="view-catalog" role="tabpanel"
+    aria-labelledby="tab-catalog" tabindex="0" hidden>
     <div class="view-header">
       <span class="view-title">Server Catalog</span>
       <span class="tile-title" id="catalog-count">0 servers</span>
@@ -815,7 +816,8 @@ _VIEW_CATALOG = r"""
 """
 
 _VIEW_EVALS = r"""
-  <div class="view" id="view-evals" role="tabpanel" aria-labelledby="tab-evals" tabindex="0">
+  <div class="view" id="view-evals" role="tabpanel"
+    aria-labelledby="tab-evals" tabindex="0" hidden>
     <div class="view-header">
       <span class="view-title">Tool Performance</span>
     </div>
@@ -832,7 +834,8 @@ _VIEW_EVALS = r"""
 """
 
 _VIEW_DEPLOY = r"""
-  <div class="view" id="view-deploy" role="tabpanel" aria-labelledby="tab-deploy" tabindex="0">
+  <div class="view" id="view-deploy" role="tabpanel"
+    aria-labelledby="tab-deploy" tabindex="0" hidden>
     <div class="view-header">
       <span class="view-title">Deployment Configs</span>
     </div>
@@ -851,7 +854,8 @@ _VIEW_DEPLOY = r"""
 """
 
 _VIEW_SETTINGS = r"""
-  <div class="view" id="view-settings" role="tabpanel" aria-labelledby="tab-settings" tabindex="0">
+  <div class="view" id="view-settings" role="tabpanel"
+    aria-labelledby="tab-settings" tabindex="0" hidden>
     <div class="view-header">
       <span class="view-title">Settings</span>
     </div>
@@ -2103,18 +2107,48 @@ async function toggleTunnel(provider) {
 // ── View Navigation ────────────────────
 let currentView = 'dashboard';
 
-function switchView(name) {
+function switchView(name, options = {}) {
   currentView = name;
   document.querySelectorAll('.view').forEach(v => {
-    v.classList.toggle('active', v.id === 'view-' + name);
+    const isActive = v.id === 'view-' + name;
+    v.classList.toggle('active', isActive);
+    v.hidden = !isActive;
   });
   document.querySelectorAll('.nav-tabs .tab').forEach(t => {
-    const active = t.dataset.view === name;
-    t.classList.toggle('active', active);
-    t.setAttribute('aria-selected', String(active));
-    t.setAttribute('tabindex', active ? '0' : '-1');
+    const isActive = t.dataset.view === name;
+    t.classList.toggle('active', isActive);
+    t.setAttribute('aria-selected', String(isActive));
+    t.setAttribute('tabindex', isActive ? '0' : '-1');
+    if (isActive && options.focusTab) t.focus();
   });
   loadViewData(name);
+}
+
+function initTabNavigation() {
+  const tablist = document.querySelector('.nav-tabs[role="tablist"]');
+  if (!tablist) return;
+
+  tablist.addEventListener('keydown', (e) => {
+    const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+    const currentIndex = tabs.indexOf(document.activeElement);
+    if (currentIndex === -1) return;
+
+    let nextIndex = currentIndex;
+    if (e.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % tabs.length;
+    } else if (e.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    } else if (e.key === 'Home') {
+      nextIndex = 0;
+    } else if (e.key === 'End') {
+      nextIndex = tabs.length - 1;
+    } else {
+      return;
+    }
+
+    e.preventDefault();
+    switchView(tabs[nextIndex].dataset.view, { focusTab: true });
+  });
 }
 
 async function loadViewData(name) {
@@ -2375,6 +2409,7 @@ async function saveSettings() {
 }
 
 function initKeyboard() {
+  initTabNavigation();
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
       e.preventDefault();
@@ -2383,36 +2418,10 @@ function initKeyboard() {
     }
     const tag = e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
     if (e.key >= '1' && e.key <= '5') {
       const views = ['dashboard', 'catalog', 'evals', 'deploy', 'settings'];
       const v = views[parseInt(e.key) - 1];
-      if (v) switchView(v);
-    }
-
-    // ARIA Tab navigation
-    if (e.target.role === 'tab') {
-      const tabs = Array.from(document.querySelectorAll('.nav-tabs .tab'));
-      const idx = tabs.indexOf(e.target);
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        const next = tabs[(idx + 1) % tabs.length];
-        next.focus();
-        switchView(next.dataset.view);
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
-        prev.focus();
-        switchView(prev.dataset.view);
-      } else if (e.key === 'Home') {
-        e.preventDefault();
-        tabs[0].focus();
-        switchView(tabs[0].dataset.view);
-      } else if (e.key === 'End') {
-        e.preventDefault();
-        tabs[tabs.length - 1].focus();
-        switchView(tabs[tabs.length - 1].dataset.view);
-      }
+      if (v) switchView(v, { focusTab: true });
     }
   });
 }
