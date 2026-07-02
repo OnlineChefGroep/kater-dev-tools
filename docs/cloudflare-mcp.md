@@ -1,88 +1,86 @@
 # Cloudflare Global MCP — Deployment Guide
 
-Full Cloudflare management via MCP (50+ tools) running on bc-scan-2 behind Cloudflare Tunnel.
-
-**Droid integration**: `chef-cloudflare-global` in `~/.factory/mcp.json`
+Full Cloudflare management via MCP (50+ tools) behind a Cloudflare Tunnel.
 
 ## Architecture
 
 ```
-Droid (Windows) ──→ https://mcp-cf.chefgroep.online/mcp (CF Tunnel)
-                         │
-                    bc-scan-2:3101 (Node MCP server)
-                         │
-                    Cloudflare v4 API (Global API Key)
+MCP client ──→ https://mcp-cf.example.com/mcp (CF Tunnel)
+                    │
+               host:3101 (Node MCP server)
+                    │
+               Cloudflare v4 API (Global API Key or token)
 ```
 
-## Quick Deploy (bc-scan-2)
+## Quick Deploy
 
 ```bash
-# 1. Clone the MCP server
-cd /home/ubuntu
-git clone https://github.com/OnlineChefGroep/kater-dev-tools.git  # or copy files
-mkdir -p chef-cloudflare-global-mcp
+# 1. Copy server files to your host
+REMOTE_DIR=/opt/cloudflare-global-mcp
+mkdir -p "${REMOTE_DIR}"
+cp infra/cloudflare-mcp/* "${REMOTE_DIR}/"
 
-# 2. Copy server files
-cp kater-dev-tools/infra/cloudflare-mcp/* chef-cloudflare-global-mcp/
-
-# 3. Create .env (never commit!)
-cat > chef-cloudflare-global-mcp/.env << 'EOF'
-CLOUDFLARE_EMAIL=chefadmin@chefgroep.online
+# 2. Create .env (never commit!)
+cat > "${REMOTE_DIR}/.env" << 'EOF'
+CLOUDFLARE_EMAIL=admin@example.com
 CLOUDFLARE_API_KEY=<your-global-api-key>
-CLOUDFLARE_ACCOUNT_ID=3658edc5d94b8eb1fb06790e4b712877
+CLOUDFLARE_ACCOUNT_ID=<your-account-id>
 PORT=3101
 HOST=127.0.0.1
 EOF
 
-# 4. Install & start
-cd chef-cloudflare-global-mcp
+# 3. Install & start
+cd "${REMOTE_DIR}"
 npm install
-sudo cp ../kater-dev-tools/infra/cloudflare-mcp/systemd/*.service /etc/systemd/system/
+sudo cp systemd/*.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now chef-cloudflare-mcp cloudflared-mcp
 ```
 
 ## Tunnel Setup
 
-The MCP server runs behind a dedicated Cloudflare Tunnel (`chef-cloudflare-mcp`):
-
-1. Create tunnel via Cloudflare API or dashboard
-2. DNS CNAME: `mcp-cf.chefgroep.online` → `<tunnel-id>.cfargotunnel.com`
-3. Tunnel ingress: `mcp-cf.chefgroep.online` → `http://localhost:3101`
-4. WAF skip rule on `chefgroep.online` zone for `mcp-cf.chefgroep.online`
+1. Create a tunnel via the Cloudflare dashboard or API
+2. DNS CNAME: `mcp-cf.example.com` → `<tunnel-id>.cfargotunnel.com`
+3. Tunnel ingress: `mcp-cf.example.com` → `http://localhost:3101`
+4. Optional: WAF skip rule for the MCP hostname if your client cannot send browser headers
 
 ## Service Management
 
 ```bash
-# MCP server
 sudo systemctl status chef-cloudflare-mcp
 sudo systemctl restart chef-cloudflare-mcp
 journalctl -u chef-cloudflare-mcp -f
 
-# Tunnel
 sudo systemctl status cloudflared-mcp
 sudo systemctl restart cloudflared-mcp
 ```
 
-## Droid Configuration
+## MCP Client Configuration
 
-In `~/.factory/mcp.json`:
+Streamable HTTP example:
 
 ```json
 {
-  "chef-cloudflare-global": {
+  "cloudflare-global": {
     "type": "streamableHttp",
-    "url": "https://mcp-cf.chefgroep.online/mcp",
+    "url": "https://mcp-cf.example.com/mcp",
     "disabled": false
-  },
-  "chef-cloudflare-global-local": {
+  }
+}
+```
+
+Local stdio fallback (development):
+
+```json
+{
+  "cloudflare-global-local": {
     "type": "stdio",
     "command": "node",
-    "args": ["C:/Users/joep/chef-cloudflare-global-mcp/server.mjs"],
+    "args": ["/opt/cloudflare-global-mcp/server-http.mjs"],
     "env": {
-      "CLOUDFLARE_EMAIL": "chefadmin@chefgroep.online",
+      "CLOUDFLARE_EMAIL": "admin@example.com",
       "CLOUDFLARE_API_KEY": "<key>",
-      "CLOUDFLARE_ACCOUNT_ID": "3658edc5d94b8eb1fb06790e4b712877"
+      "CLOUDFLARE_ACCOUNT_ID": "<account-id>"
     },
     "disabled": true
   }
@@ -90,8 +88,6 @@ In `~/.factory/mcp.json`:
 ```
 
 ## Tool Inventory (50+ tools)
-
-See full runbook: `CLOUDFLARE.md`
 
 | Category | Tools |
 |----------|-------|
@@ -113,7 +109,5 @@ See full runbook: `CLOUDFLARE.md`
 
 ## Related
 
-- Runbook: `CLOUDFLARE.md` (included with server)
-- Skill: `~/.factory/skills/cloudflare-ops/SKILL.md`
-- Droid: `~/.factory/droids/cloudflare-ops.md`
-- Notion: [Cloudflare Global MCP](https://app.notion.com/p/391ecd7f1c1a81a3bf88eb066b19c3de)
+- Infra: `infra/cloudflare-mcp/`
+- Cloudflare MCP plugin: [cloudflare/mcp-server-cloudflare](https://github.com/cloudflare/mcp-server-cloudflare)

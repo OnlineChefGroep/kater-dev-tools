@@ -1,34 +1,36 @@
 # Cloudflare Global MCP — Infrastructure
 
-Server files for the `chef-cloudflare-global` MCP server deployed on bc-scan-2.
+Server files for a Cloudflare Global MCP server (HTTP/Streamable transport behind Cloudflare Tunnel).
 
 ## Files
 
 - `tools.mjs` — Shared tool definitions (50+ Cloudflare tools)
 - `server-http.mjs` — HTTP/Streamable transport for remote access
 - `package.json` — Node.js dependencies
+- `systemd/*.service` — Example systemd units for the MCP server and tunnel
 
 ## Deploy
 
+Replace `REMOTE_HOST` and paths with your deployment host.
+
 ```bash
-# Copy files to host
-scp *.mjs package.json bc-scan-2:/home/ubuntu/chef-cloudflare-global-mcp/
+REMOTE_HOST=your-server
+REMOTE_DIR=/opt/cloudflare-global-mcp
 
-# Install
-ssh bc-scan-2 "cd /home/ubuntu/chef-cloudflare-global-mcp && npm install"
+# Copy files to host (including systemd units)
+scp *.mjs package.json systemd/*.service "${REMOTE_HOST}:${REMOTE_DIR}/"
 
-# Deploy systemd units
-sudo cp systemd/*.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now chef-cloudflare-mcp cloudflared-mcp
+# Install and enable services on the remote host
+ssh "${REMOTE_HOST}" "cd ${REMOTE_DIR} && npm install && \
+  sudo cp systemd/*.service /etc/systemd/system/ && \
+  sudo systemctl daemon-reload && \
+  sudo systemctl enable --now chef-cloudflare-mcp cloudflared-mcp"
 ```
 
 ## Tunnel
 
-Managed via Cloudflare dashboard/API: tunnel `chef-cloudflare-mcp` routes `mcp-cf.chefgroep.online` → `localhost:3101`
+Create a Cloudflare Tunnel that routes `mcp-cf.example.com` → `http://localhost:3101` (or your chosen port).
 
 ## Reference
 
 - Docs: `docs/cloudflare-mcp.md`
-- Runbook: `CLOUDFLARE.md` (on server)
-- Notion: Cloudflare Global MCP
