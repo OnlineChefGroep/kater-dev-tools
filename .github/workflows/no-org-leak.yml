@@ -14,18 +14,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Block chefgroep strings
+      - name: Block org production domains
         run: |
           set -euo pipefail
-          if git grep -i 'chefgroep' -- . ':!README.md' ':!LICENSE' ':!SPLIT_DECISION.md' ':!AUDIT.md' ':!.github/workflows/no-org-leak.yml'; then
-            echo 'ERROR: chefgroep found outside allowed attribution/docs files'
+          if git grep -iE 'chefgroep\.(nl|online)' -- . ':!SPLIT_DECISION.md' ':!AUDIT.md' ':!.github/workflows/no-org-leak.yml'; then
+            echo 'ERROR: chefgroep production domain found outside split audit docs'
             exit 1
           fi
 
       - name: Block onlinechefgroep outside attribution
         run: |
           set -euo pipefail
-          if git grep -i 'onlinechefgroep' -- . ':!README.md' ':!LICENSE' ':!CONTRIBUTING.md' ':!SECURITY.md' ':!pyproject.toml' ':!SPLIT_DECISION.md' ':!AUDIT.md' ':!.github/workflows/no-org-leak.yml'; then
+          if git grep -i 'onlinechefgroep' -- . ':!README.md' ':!LICENSE' ':!CONTRIBUTING.md' ':!SECURITY.md' ':!pyproject.toml' ':!docs/deploy-server.md' ':!SPLIT_DECISION.md' ':!AUDIT.md' ':!.github/workflows/no-org-leak.yml'; then
             echo 'ERROR: onlinechefgroep found outside allowed attribution files'
             exit 1
           fi

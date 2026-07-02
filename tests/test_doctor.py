@@ -5,7 +5,15 @@ import json
 from kater.doctor import run_doctor
 
 
-def test_doctor_passes_core_profile() -> None:
+def test_doctor_passes_core_profile(monkeypatch) -> None:
+    for var in (
+        "LINEAR_API_KEY",
+        "CLOUDFLARE_API_TOKEN",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "GITLAB_PERSONAL_ACCESS_TOKEN",
+    ):
+        monkeypatch.delenv(var, raising=False)
+
     report = run_doctor(profiles={"core"})
 
     assert report.profiles == ["core"]
