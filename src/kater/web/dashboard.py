@@ -418,6 +418,15 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
   content: ''; position: absolute; bottom: 0; left: 14px; right: 14px;
   height: 2px; background: var(--accent); border-radius: 2px 2px 0 0;
 }
+.tab-num {
+  font-family: var(--mono); font-size: 9px; color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: 3px;
+  padding: 0 4px; margin-left: 8px; opacity: 0.6;
+  transition: var(--transition);
+}
+.tab:hover .tab-num, .tab.active .tab-num {
+  color: var(--accent); border-color: var(--accent-soft); opacity: 1;
+}
 /* ── Views ────────────────────────────── */
 .view { display: none; flex: 1; overflow: hidden; }
 .view.active { display: flex; flex-direction: column; }
@@ -442,6 +451,11 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
   padding: 48px 20px; text-align: center;
   font-family: var(--mono); font-size: 12px; color: var(--text-dim);
 }
+.view-empty-link {
+  color: var(--accent); text-decoration: underline; cursor: pointer;
+  transition: var(--transition);
+}
+.view-empty-link:hover { color: var(--accent-soft); }
 .catalog-toolbar {
   padding: 10px 12px 0;
   position: sticky; top: 0; z-index: 2;
@@ -823,13 +837,13 @@ _VIEW_CATALOG = r"""
     aria-labelledby="tab-catalog" tabindex="0" hidden>
     <div class="view-header">
       <span class="view-title">Server Catalog</span>
-      <span class="tile-title" id="catalog-count">0 servers</span>
+      <span class="tile-title" id="catalog-count" aria-live="polite">0 servers</span>
     </div>
     <div class="view-scroll">
       <div class="catalog-toolbar">
         <input class="form-input" id="catalog-search" type="search"
           placeholder="Search servers (e.g. search, github)..." autocomplete="off"
-          aria-label="Search servers">
+          aria-label="Search servers" aria-describedby="catalog-count">
       </div>
       <div class="server-grid" id="catalog-grid">
         <div class="view-empty">Loading catalog...</div>
@@ -1369,11 +1383,13 @@ async function loadProfiles() {
   el.innerHTML = '';
   for (const p of profiles) {
     const pill = document.createElement('div');
-    pill.className = 'pill' + (p === activeProfile ? ' active' : '');
+    const isActive = p === activeProfile;
+    pill.className = 'pill' + (isActive ? ' active' : '');
     pill.textContent = p;
     pill.dataset.profile = p;
     pill.setAttribute('tabindex', '0');
     pill.setAttribute('role', 'button');
+    pill.setAttribute('aria-pressed', String(isActive));
     el.appendChild(pill);
   }
 }
@@ -1382,7 +1398,9 @@ function switchProfile(p) {
   if (profiles.indexOf(p) === -1) { toast('unknown profile: ' + p, 'error'); return; }
   activeProfile = p;
   document.querySelectorAll('.pill').forEach(el => {
-    el.classList.toggle('active', el.dataset.profile === p);
+    const isActive = el.dataset.profile === p;
+    el.classList.toggle('active', isActive);
+    el.setAttribute('aria-pressed', String(isActive));
   });
   loadCatalog();
   if (currentView === 'catalog') loadCatalogView();
@@ -2215,9 +2233,25 @@ async function loadCatalogView() {
     const empty = document.createElement('div');
     empty.className = 'view-empty';
     empty.style.gridColumn = '1 / -1';
-    empty.textContent = catalogQuery
-      ? 'No servers match "' + catalogQuery + '". Clear the search to see all.'
-      : 'No servers in this profile. Switch profiles in the top bar.';
+    if (catalogQuery) {
+      empty.textContent = 'No servers match "' + catalogQuery + '". ';
+      const clear = document.createElement('a');
+      clear.href = '#';
+      clear.className = 'view-empty-link';
+      clear.textContent = 'Clear search';
+      clear.onclick = (e) => {
+        e.preventDefault();
+        const input = document.getElementById('catalog-search');
+        if (input) {
+          input.value = '';
+          catalogQuery = '';
+          loadCatalog().then(() => loadCatalogView());
+        }
+      };
+      empty.appendChild(clear);
+    } else {
+      empty.textContent = 'No servers in this profile. Switch profiles in the top bar.';
+    }
     grid.appendChild(empty);
     return;
   }
