@@ -45,4 +45,4 @@ jobs:
           sudo mv gitleaks /usr/local/bin/gitleaks
 
       - name: Gitleaks scan (full history on PR base)
-        run: gitleaks detect --source . --log-opts="--all" --redact
+        run: gitleaks detect --source . --log-opts="--all" --config .gitleaks.toml --redact
