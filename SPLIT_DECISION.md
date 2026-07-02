@@ -55,3 +55,9 @@ Per split policy: fork is acceptable only when history is clean of **both** secr
 **No P0 committed credential leak** blocking the split.
 
 **Operational follow-up (not split-blocking):** purge gitignored `.kater/oauth.json` on operator machines and rotate OAuth tokens if that file was ever copied or backed up outside `.gitignore`.
+
+## Final status (2026-07-02)
+
+- OSS strip PR: https://github.com/OnlineChefGroep/kater-dev-tools/pull/17 (CI green)
+- Private overlay: https://github.com/OnlineChefGroep/utrecht-katermcp (`isPrivate: true`, 11 tests)
+- Local verification: 417 pytest pass; gitleaks clean with `.gitleaks.toml`

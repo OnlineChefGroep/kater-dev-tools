@@ -9,7 +9,7 @@ def load_extensions_module() -> Any | None:
     """Load optional deployment extensions (private profiles, native tools, chains).
 
     Set ``KATER_EXTENSIONS_MODULE`` to a Python module path, for example
-    ``utrecht_kater.extensions``. The module may export:
+    ``your_package.extensions``. The module may export:
 
     - ``TOOL_SOURCES``: extra ``ToolSource`` entries
     - ``PRIVATE_PROFILES``: profile names hidden when ``KATER_PUBLIC=1``

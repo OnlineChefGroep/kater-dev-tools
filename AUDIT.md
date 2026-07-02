@@ -3,7 +3,25 @@
 **Date:** 2026-07-02  
 **Scope:** `kater-dev-tools` working tree at split branch `feat/oss-private-split`
 
-## Summary
+## Completion status (2026-07-02)
+
+All org-specific items below were **resolved** on branch `feat/oss-private-split`:
+
+| Action | Result |
+|--------|--------|
+| Move deploy scripts / systemd with production domain | → `OnlineChefGroep/utrecht-katermcp` (private) |
+| Remove `src/kater/adapters/utrecht.py` | Deleted; extension hook added |
+| Remove handoff docs, `docs/adapters/utrecht.md` | Deleted from OSS |
+| Genericize `docs/PLAN-v1.0.md` | Removed from OSS (copy in private `docs/internal/`) |
+| Update tests | `demo_private` fixture via `tests/fixtures/private_extension.py` |
+| CI leak gate | `.github/workflows/no-org-leak.yml` + `.gitleaks.toml` |
+| Private repo | https://github.com/OnlineChefGroep/utrecht-katermcp (`isPrivate: true`) |
+
+**Verification:** 417 tests pass; no `chefgroep.nl`/`.online` in tracked OSS content; gitleaks clean.
+
+---
+
+## Summary (original audit)
 
 | Classification | Count | Action |
 |----------------|-------|--------|
@@ -11,42 +29,22 @@
 | org-specific-config | 28 | Move to `utrecht-katermcp` or genericize in OSS |
 | credential-shaped (P0) | 1 (local only) | Purge locally; not in git index |
 
-## Hit table
+## Hit table (original — pre-split)
 
 | File | Line(s) | Match (redacted) | Classification | Action |
 |------|---------|------------------|----------------|--------|
-| `scripts/ensure-online.sh` | 11–12 | `https://kater.chefgroep.online/...` | org-specific-config | Move to `utrecht-katermcp/deploy/` |
-| `scripts/systemd/kater.service` | 8, 14–15 | `%h/kater-dev-tools`, `kater.chefgroep.online` | org-specific-config | Move to `utrecht-katermcp/deploy/systemd/`; OSS ships `kater.service.example` |
-| `docs/PLAN-v1.0.md` | 182, 272, 276 | `kater.chefgroep.online` | org-specific-config | Move to private `docs/` or redact |
-| `docs/HANDOFF-2026-06-13.md` | multiple | `/home/sofie/...`, chefgroep VPS | org-specific-config | Remove from OSS; move to private |
-| `docs/HANDOFF-2026-06-25.md` | multiple | internal paths | org-specific-config | Remove from OSS; move to private |
-| `docs/adapters/utrecht.md` | 9, 17 | Tailscale IP, `OnlineChefGroep/utrecht-fleet` | org-specific-config | Move to `utrecht-katermcp/docs/` |
-| `src/kater/profiles.py` | 370–381, 517 | `utrecht` ToolSource, `PRIVATE_PROFILES` | org-specific-config | Remove utrecht source; keep generic `KATER_EXTENSIONS_MODULE` hook |
-| `src/kater/adapters/utrecht.py` | all | Utrecht adapter | org-specific-config | Move to `utrecht-katermcp/src/utrecht_kater/` |
-| `src/kater/registry.py` | 40–120 | `utrecht_*` native tools | org-specific-config | Move with adapter; load via extensions |
-| `src/kater/chains.py` | 39–48 | `utrecht_status` chain | org-specific-config | Move with adapter |
-| `tests/test_utrecht_adapter.py` | all | Utrecht tests | org-specific-config | Move to private repo |
-| `tests/test_registry.py` | 17–35 | utrecht assertions | org-specific-config | Update to `demo_private` fixture |
-| `tests/test_chains.py` | 12, 35–40 | utrecht chain | org-specific-config | Update to fixture |
-| `tests/test_profiles.py` | 27 | `utrecht` in profiles | org-specific-config | Update to fixture |
-| `tests/test_api.py` | 277–280 | `utrecht` visibility | org-specific-config | Update to fixture |
-| `tests/test_cli.py` | 85–88 | utrecht chains CLI | org-specific-config | Update to fixture |
-| `tests/test_hardening.py` | 484 | `utrecht` not in public | org-specific-config | Update to `demo_private` |
-| `.kater/oauth.json` | 8–35 | `tok_…`, `code_…`, production redirect | credential-shaped (local) | **Purge file locally; rotate tokens** — not tracked |
-| `README.md` | 3, 134 | `OnlineChefGroep`, `utrecht` catalog row | generic-example | Keep attribution; remove utrecht row |
-| `pyproject.toml` | 8, 27–30 | `OnlineChefGroep` URLs | generic-example | Keep |
-| `docker-compose.yml` | 19 | `kater.example.com` | generic-example | Keep |
-| `scripts/deploy-cloudflare.sh` | 4 | `kater.example.com` | generic-example | Keep |
-| `.env.example` | 70–71 | `UTRECHT_*` placeholders | generic-example | Remove utrecht section from OSS |
-
-## Grep commands (working tree)
-
-```bash
-grep -rniE "chefgroep\.(nl|online)" .     # 8 hits in 4 tracked files + gitignored oauth.json
-grep -rniE "onlinechefgroep" . --include="*.py" ...  # 0 in code/config (README/LICENSE only)
-grep -rniE "(postgres|redis|upstash)://[^\"'\s]+@" .  # 0
-find . -name ".env" -not -name ".env.example"           # 0
-```
+| `scripts/ensure-online.sh` | 11–12 | `https://kater.chefgroep.online/...` | org-specific-config | ✅ Moved |
+| `scripts/systemd/kater.service` | 8, 14–15 | production domain | org-specific-config | ✅ Moved |
+| `docs/PLAN-v1.0.md` | 182, 272, 276 | production domain | org-specific-config | ✅ Removed from OSS |
+| `docs/HANDOFF-2026-06-13.md` | multiple | internal paths | org-specific-config | ✅ Removed |
+| `docs/HANDOFF-2026-06-25.md` | multiple | internal paths | org-specific-config | ✅ Removed |
+| `docs/adapters/utrecht.md` | 9, 17 | org adapter doc | org-specific-config | ✅ Moved |
+| `src/kater/profiles.py` | utrecht ToolSource | org-specific-config | ✅ Removed; extension hook |
+| `src/kater/adapters/utrecht.py` | all | org adapter | org-specific-config | ✅ Moved |
+| `src/kater/registry.py` | utrecht_* tools | org-specific-config | ✅ Moved |
+| `src/kater/chains.py` | utrecht chain | org-specific-config | ✅ Moved |
+| `tests/test_utrecht_adapter.py` | all | org tests | org-specific-config | ✅ Moved |
+| `.kater/oauth.json` | local OAuth state | credential-shaped | ⚠️ Purge locally; rotate tokens |
 
 ## Move map → `utrecht-katermcp`
 
@@ -58,14 +56,13 @@ find . -name ".env" -not -name ".env.example"           # 0
 | utrecht registry/chains/profile defs | `src/utrecht_kater/extensions.py` |
 | `docs/adapters/utrecht.md` | `docs/adapters/utrecht.md` |
 | `docs/HANDOFF-*.md`, `docs/PLAN-v1.0.md` | `docs/internal/` |
-| — | `profiles/ops.yaml`, `profiles/utrecht.yaml` (deployment env manifests) |
-| — | `.env.example` (names only, OCG production) |
-| — | `docs/DEPLOYMENT.md` |
+| — | `profiles/ops.yaml`, `profiles/utrecht.yaml` |
+| — | `.env.example`, `docs/DEPLOYMENT.md` |
 
 ## OSS replacements
 
 | Removed | Replaced with |
 |---------|---------------|
-| Hardcoded `chefgroep.online` | `kater.example.com` or `$KATER_DOMAIN` in examples |
-| `utrecht` profile in core | `KATER_EXTENSIONS_MODULE=utrecht_kater.extensions` (private) |
-| `PRIVATE_PROFILES = {"utrecht"}` | Empty in OSS; defined in extension module |
+| Hardcoded production domain | `kater.example.com` or `$KATER_DOMAIN` |
+| `utrecht` profile in core | `KATER_EXTENSIONS_MODULE` (private overlay) |
+| `PRIVATE_PROFILES = {"utrecht"}` | Loaded from extension module when set |
