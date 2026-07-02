@@ -5,7 +5,7 @@ import json
 from kater.doctor import run_doctor
 
 
-def test_doctor_passes_core_profile(monkeypatch) -> None:
+def test_doctor_passes_core_profile(monkeypatch, tmp_path) -> None:
     for var in (
         "LINEAR_API_KEY",
         "CLOUDFLARE_API_TOKEN",
@@ -14,7 +14,10 @@ def test_doctor_passes_core_profile(monkeypatch) -> None:
     ):
         monkeypatch.delenv(var, raising=False)
 
-    report = run_doctor(profiles={"core"})
+    mcp_path = tmp_path / "mcp.json"
+    mcp_path.write_text(json.dumps({"mcpServers": {"kater": {}}}), encoding="utf-8")
+
+    report = run_doctor(profiles={"core"}, cursor_mcp_path=mcp_path)
 
     assert report.profiles == ["core"]
     assert [source["name"] for source in report.sources] == ["kater"]
