@@ -21,7 +21,7 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -368,7 +368,7 @@ def write_install_manifest(installed: dict[str, str], *, dry_run: bool) -> Path:
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "version": 1,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "plugins": installed,
     }
     manifest_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
