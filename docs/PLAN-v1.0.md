@@ -179,7 +179,7 @@ CSS systeem:
 **Doel:** Kater werkt met ChatGPT's "Remote MCP" feature.
 
 **Wat ChatGPT nodig heeft:**
-1. Publiek bereikbare SSE endpoint (`https://kater.chefgroep.online/sse`)
+1. Publiek bereikbare SSE endpoint (`https://kater.example.com/sse`)
 2. OAuth 2.0 met PKCE flow (authorization code)
 3. `/.well-known/oauth-authorization-server` discovery
 4. Tool list via SSE MCP protocol
@@ -269,11 +269,11 @@ werken real-time.
 1. `oauth.py` — authorization code flow met PKCE
 2. `.well-known/` discovery endpoints
 3. Cloudflare Tunnel deploy script (automated)
-4. Subdomain setup: `kater.chefgroep.online`
+4. Subdomain setup: `kater.example.com`
 5. SSL via Cloudflare (automatic)
 6. Profile routing via URL: `/sse?profile=ops`
 
-**Acceptatie:** ChatGPT → Settings → MCP → `https://kater.chefgroep.online/sse`
+**Acceptatie:** ChatGPT → Settings → MCP → `https://kater.example.com/sse`
 → OAuth login → tools verschijnen in ChatGPT.
 
 ### Fase 4: Hardening + Polish

@@ -131,7 +131,6 @@ All commands support `--json` for structured output.
 | memory | stdio | reasoning |
 | sequential-thinking | stdio | reasoning, research |
 | time | stdio | utils |
-| utrecht | sse | utrecht |
 
 ## Web Dashboard
 
@@ -220,7 +219,12 @@ uv run kater serve
 
 See [docs/deploy-server.md](docs/deploy-server.md) and [SECURITY.md](SECURITY.md).
 
-### Tailscale Funnel
+### Private deployment extensions
+
+Org-specific profiles and adapters can live in a separate private repo and load at
+runtime via `KATER_EXTENSIONS_MODULE` (see `src/kater/extensions.py`). OnlineChefGroep
+uses [`utrecht-katermcp`](https://github.com/OnlineChefGroep/utrecht-katermcp) (private).
+
 
 ```bash
 KATER_PUBLIC=1 KATER_AUTH_MODE=apikey KATER_API_KEY=... kater tunnel start -p tailscale
