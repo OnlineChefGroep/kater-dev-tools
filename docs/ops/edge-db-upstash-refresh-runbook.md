@@ -19,7 +19,7 @@ remote host environment or the secret manager used by the deployment.
 The ticket is complete only when all gates pass:
 
 1. Public edge artifacts expose a fresh `generated_at` timestamp.
-2. Readiness reports database availability as `db_ready: true`.
+2. Kater health/status endpoints report the service is up (see "Readiness Verification").
 3. Upstash cache roundtrip succeeds with a write followed by a read.
 
 ## Inputs
@@ -140,18 +140,19 @@ including secret values in the response.
 
 ## Readiness Verification
 
-Check health first, then the authenticated readiness/status endpoint used by the
-deployment:
+Kater exposes a public `/health` endpoint and an authenticated `/api/status`
+endpoint.
 
 ```bash
 curl -fsS https://<edge-host>/health | jq .
-curl -fsS -H "Authorization: Bearer <operator-token>" https://<edge-host>/<readyz-path> | jq .
+curl -fsS -H "Authorization: Bearer <operator-token>" https://<edge-host>/api/status | jq .
 ```
 
 Pass criteria:
 
-- `/health` returns `status: ok`.
-- Readiness includes `db_ready: true`.
+- `/health` returns `status: "ok"`.
+- `/api/status` returns HTTP 200 and includes the expected deployment metadata (for example
+  `version`, `profile`, and `storage_backend`).
 - Cache probe confirms write/read success.
 - Public artifact `generated_at` is fresh.
 
@@ -161,6 +162,6 @@ Comment on CHE-322 with:
 
 - Host touched and service restarted, without secrets or private addresses.
 - The artifact `generated_at` value observed after refresh.
-- The readiness result, including `db_ready: true`.
+- The `/health` and `/api/status` results (redact any tokens/keys).
 - The cache roundtrip result.
 - Any follow-up PR or deploy reference.
