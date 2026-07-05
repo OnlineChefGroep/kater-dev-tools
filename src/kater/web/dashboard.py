@@ -418,6 +418,19 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
   content: ''; position: absolute; bottom: 0; left: 14px; right: 14px;
   height: 2px; background: var(--accent); border-radius: 2px 2px 0 0;
 }
+.tab-num {
+  font-family: var(--mono); font-size: 9px;
+  padding: 1px 4px; margin-left: 8px;
+  border: 1px solid var(--border-bright); border-radius: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-dim); opacity: 0.7;
+  transition: var(--transition);
+}
+.tab:hover .tab-num { color: var(--text); border-color: var(--text-dim); opacity: 1; }
+.tab.active .tab-num {
+  background: var(--accent-glow); color: var(--accent);
+  border-color: var(--accent); opacity: 1;
+}
 /* ── Views ────────────────────────────── */
 .view { display: none; flex: 1; overflow: hidden; }
 .view.active { display: flex; flex-direction: column; }
