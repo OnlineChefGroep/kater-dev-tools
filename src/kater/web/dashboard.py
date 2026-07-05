@@ -805,7 +805,7 @@ _VIEW_CATALOG = r"""
     <div class="view-scroll">
       <div class="catalog-toolbar">
         <input class="form-input" id="catalog-search" type="search"
-          placeholder="Zoek servers (bijv. search, github)..." autocomplete="off"
+          placeholder="Search servers (e.g. search, github)..." autocomplete="off"
           aria-label="Search servers">
       </div>
       <div class="server-grid" id="catalog-grid">
@@ -844,7 +844,7 @@ _VIEW_DEPLOY = r"""
       <div class="code-preview">
         <div class="code-desc" id="deploy-desc"></div>
         <div class="code-wrap">
-          <button class="code-copy" onclick="copyDeployCode()"
+          <button class="code-copy" onclick="copyDeployCode(this)"
             aria-label="Copy deployment code">Copy</button>
           <pre class="code-block" id="deploy-code">Select a format above.</pre>
         </div>
@@ -1834,6 +1834,12 @@ function initDelegation() {
         e.preventDefault();
         e.stopPropagation();
         toggleServerCard(toggle.dataset.name, toggle);
+        return;
+      }
+      const card = e.target.closest('.server-card');
+      if (card && card.dataset.name) {
+        e.preventDefault();
+        openServerDetail(card.dataset.name);
       }
     }
   });
@@ -2186,6 +2192,9 @@ async function loadCatalogView() {
     const card = document.createElement('div');
     card.className = 'server-card';
     card.dataset.name = s.name;
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', 'View details for ' + s.name);
 
     const head = document.createElement('div');
     head.className = 'server-card-head';
@@ -2360,11 +2369,21 @@ async function selectDeployFormat(fmt) {
   }
 }
 
-function copyDeployCode() {
+function copyDeployCode(btn) {
+  if (btn.dataset.copying) return;
   const text = document.getElementById('deploy-code').textContent || '';
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(
-      () => toast('copied to clipboard', 'success'),
+      () => {
+        btn.dataset.copying = '1';
+        const old = btn.textContent;
+        btn.textContent = 'Copied!';
+        toast('copied to clipboard', 'success');
+        setTimeout(() => {
+          btn.textContent = old;
+          delete btn.dataset.copying;
+        }, 2000);
+      },
       () => toast('clipboard access denied', 'error')
     );
   } else {
