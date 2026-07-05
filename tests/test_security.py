@@ -225,15 +225,15 @@ def test_body_size_limit(api_server):
     )
     try:
         urllib.request.urlopen(req)
+    except urllib.error.HTTPError as e:
+        assert e.code in (400, 413)
+        return
     except urllib.error.URLError as e:
         # On some systems/python versions, the server closing the connection
         # early on a too-large body surfaces as a URLError/BrokenPipeError.
         if "Broken pipe" in str(e.reason):
             return
         raise
-    except urllib.error.HTTPError as e:
-        assert e.code in (400, 413)
-        return
     pytest.fail("Expected body size error")
 
 
