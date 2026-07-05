@@ -2242,6 +2242,7 @@ async function loadCatalogView() {
       empty.textContent = 'No servers match "' + catalogQuery + '".';
       const clearBtn = document.createElement('button');
       clearBtn.className = 'view-empty-link';
+      clearBtn.type = 'button';
       clearBtn.textContent = 'Clear search';
       clearBtn.onclick = clearSearch;
       empty.appendChild(clearBtn);
@@ -2268,7 +2269,8 @@ async function loadCatalogView() {
     toggle.setAttribute('role', 'switch');
     toggle.setAttribute('aria-checked', String(!!s.enabled));
     toggle.setAttribute('tabindex', '0');
-    toggle.title = pending ? 'On, but needs credentials to connect' : '';
+    toggle.title = pending ? 'On, but needs credentials to connect'
+      : (s.enabled ? 'Click to disable' : 'Click to enable');
     toggle.dataset.name = s.name;
     head.appendChild(nameEl);
     head.appendChild(toggle);
@@ -2315,7 +2317,8 @@ async function toggleServerCard(name, el) {
     el.classList.remove('on', 'pending');
     if (data.enabled) el.classList.add(pending ? 'pending' : 'on');
     el.setAttribute('aria-checked', String(!!data.enabled));
-    el.title = pending ? 'On, but needs credentials to connect' : '';
+    el.title = pending ? 'On, but needs credentials to connect'
+      : (data.enabled ? 'Click to disable' : 'Click to enable');
     toast(enableHint(name, !!data.enabled), data.enabled ? 'success' : '');
     // Enabling something that still needs a token? Bring up the connect popup.
     if (pending) promptCredentials(name);
