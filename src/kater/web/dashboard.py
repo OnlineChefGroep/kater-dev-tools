@@ -1382,6 +1382,7 @@ async function loadProfiles() {
     pill.setAttribute('tabindex', '0');
     pill.setAttribute('role', 'button');
     pill.setAttribute('aria-pressed', String(isActive));
+    pill.title = 'Switch to ' + p + ' profile';
     el.appendChild(pill);
   }
 }
@@ -1716,6 +1717,8 @@ function openDetail(node) {
   const disableBtn = document.getElementById('btn-disable');
   enableBtn.disabled = !!node.enabled;
   disableBtn.disabled = !node.enabled;
+  enableBtn.title = node.enabled ? 'Already enabled' : 'Enable ' + node.name;
+  disableBtn.title = node.enabled ? 'Disable ' + node.name : 'Already disabled';
   enableBtn.style.opacity = node.enabled ? '0.4' : '1';
   disableBtn.style.opacity = node.enabled ? '1' : '0.4';
 
