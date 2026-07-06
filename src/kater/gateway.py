@@ -59,13 +59,10 @@ def _prepare_proxy_headers(scope: dict) -> dict[str, str]:
     return headers
 
 
-async def _read_proxy_body(scope: dict, receive: Any) -> bytes:
+async def _read_proxy_body(scope: dict, receive: Any, body_limit: int) -> bytes:
     if scope.get("method") not in {"POST", "PUT", "PATCH"}:
         return b""
 
-    from kater.settings import load_settings
-
-    body_limit = load_settings().body_size_limit
     chunks: list[bytes] = []
     total = 0
     while True:
@@ -96,7 +93,8 @@ def _format_proxy_response_headers(
 async def _proxy_to_api(scope: dict, receive: Any, send: Any, api_port: int) -> None:
     url = _build_proxy_url(scope, api_port)
     headers = _prepare_proxy_headers(scope)
-    body = await _read_proxy_body(scope, receive)
+    body_limit = load_settings().body_size_limit
+    body = await _read_proxy_body(scope, receive, body_limit)
 
     def _do_request() -> tuple[int, list[tuple[str, str]], bytes]:
         req = request.Request(
