@@ -2814,14 +2814,10 @@ function initKeyboard() {
 window.addEventListener('DOMContentLoaded', init);
 """
 
-_FONTS = (
-    '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
-    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
-    '<link href="https://fonts.googleapis.com/css2'
-    "?family=Space+Grotesk:wght@400;500;700"
-    "&family=JetBrains+Mono:wght@400;600;700"
-    '&display=swap" rel="stylesheet">\n'
-)
+# Note: The API server uses a strict Content-Security-Policy (CSP) that only
+# allows styles/fonts from 'self'. Avoid embedding external Google Fonts links
+# here to prevent guaranteed CSP violations and blocked typography.
+_FONTS = ""
 
 
 def render_dashboard(ws_port: int = 9092) -> str:
