@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from kater.storage import _jsonl_clear, _jsonl_query, _row_to_dict
+from kater.storage import _jsonl_query, _row_to_dict, clear_all_events, insert_event
+
+from kater.settings import KaterSettings, invalidate_settings_cache, save_settings
 
 
 def test_jsonl_query_skips_corrupt_lines(tmp_path, monkeypatch) -> None:
@@ -47,23 +49,28 @@ def test_row_to_dict_tolerates_corrupt_metadata() -> None:
     assert result["success"] is False
 
 
-def test_jsonl_clear_empty(tmp_path, monkeypatch) -> None:
-    path = tmp_path / "telemetry.jsonl"
-    monkeypatch.setattr("kater.storage._jsonl_path", lambda: path)
+def test_clear_all_events_jsonl_empty(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    save_settings(KaterSettings(storage_backend="jsonl"))
+    invalidate_settings_cache()
+
+    path = tmp_path / ".kater" / "telemetry.jsonl"
 
     # File does not exist yet
     assert not path.exists()
-    assert _jsonl_clear() == 0
+    assert clear_all_events() == 0
 
 
-def test_jsonl_clear_with_events(tmp_path, monkeypatch) -> None:
-    path = tmp_path / "telemetry.jsonl"
-    lines = "".join(
-        f'{{"type":"tool_call","name":"n{i}","timestamp":{i}}}\n' for i in range(5)
-    )
-    path.write_text(lines, encoding="utf-8")
-    monkeypatch.setattr("kater.storage._jsonl_path", lambda: path)
+def test_clear_all_events_jsonl_with_events(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    save_settings(KaterSettings(storage_backend="jsonl"))
+    invalidate_settings_cache()
 
+    for i in range(5):
+        insert_event({"type": "tool_call", "name": f"n{i}", "timestamp": i})
+
+    path = tmp_path / ".kater" / "telemetry.jsonl"
     assert path.exists()
-    assert _jsonl_clear() == 5
+
+    assert clear_all_events() == 5
     assert not path.exists()
