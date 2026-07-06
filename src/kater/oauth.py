@@ -54,6 +54,25 @@ body {{
   font-family:system-ui,sans-serif;
   display:flex; align-items:center; justify-content:center;
   min-height:100vh;
+  position:relative;
+}}
+.skip-link {{
+  position:absolute;
+  top:12px;
+  left:12px;
+  padding:8px 12px;
+  border-radius:8px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  color:var(--text);
+  font-family:var(--mono);
+  font-size:12px;
+  text-decoration:none;
+  transform: translateY(-200%);
+  transition: transform 200ms;
+}}
+.skip-link:focus {{
+  transform: translateY(0);
 }}
 .card {{
   background:var(--surface); border:1px solid var(--border);
@@ -82,7 +101,7 @@ p {{ color:var(--dim); font-size:14px; margin-bottom:24px; }}
   font-family:var(--mono); font-size:13px; font-weight:600;
   padding:10px 24px; border-radius:8px; cursor:pointer;
   border:none; text-decoration:none; letter-spacing:0.5px;
-  text-transform:uppercase; transition:200ms;
+  transition:200ms;
 }}
 .btn-allow {{ background:var(--green); color:#000; }}
 .btn-allow:hover {{ opacity:0.9; }}
@@ -96,7 +115,8 @@ p {{ color:var(--dim); font-size:14px; margin-bottom:24px; }}
   font-size:11px; color:var(--dim); font-family:var(--mono);
 }}
 </style></head><body>
-<div class="card">
+<a class="skip-link" href="#main">Skip to main content</a>
+<main id="main" class="card">
   <div class="logo">KATER</div>
   <h1>Authorize <span class="app-name">{safe_name}</span></h1>
   <p>This app wants to connect to your Kater MCP gateway
@@ -111,7 +131,7 @@ p {{ color:var(--dim); font-size:14px; margin-bottom:24px; }}
       aria-label="Deny access">Deny</a>
   </div>
   <div class="meta">Redirect: {safe_uri}</div>
-</div>
+</main>
 </body></html>"""
 
 
