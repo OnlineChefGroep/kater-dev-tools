@@ -21,4 +21,10 @@ def serve_unified(
     if use_proxy is None:
         use_proxy = os.environ.get("KATER_PROXY", "0") == "1"
 
-    KaterRuntime(profile=profile, listen=listen, use_proxy=use_proxy).run_until_signal()
+    proxy = None
+    if use_proxy:
+        from kater.proxy import get_proxy
+
+        proxy = get_proxy()
+
+    KaterRuntime(profile=profile, listen=listen, use_proxy=use_proxy, proxy=proxy).run_until_signal()

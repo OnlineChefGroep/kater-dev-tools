@@ -27,10 +27,12 @@ class KaterRuntime:
         profile: str = "core",
         listen: ListenConfig | None = None,
         use_proxy: bool = False,
+        proxy: Any | None = None,
     ) -> None:
         self._profile = profile
         self._listen = listen or ListenConfig()
         self._use_proxy = use_proxy
+        self._proxy = proxy
         self._started = False
         self._shutdown_event = threading.Event()
         self._api_server: ThreadingHTTPServer | None = None
@@ -64,12 +66,14 @@ class KaterRuntime:
         self._started = True
 
     def _start_proxy(self) -> None:
-        try:
-            from kater.proxy import get_proxy
+        if self._proxy is None:
+            raise RuntimeError("proxy requested but no proxy dependency was provided")
 
-            get_proxy().start(self._profile)
+        try:
+            self._proxy.start(self._profile)
         except Exception as exc:
             _log.warning("proxy startup failed: %s", exc)
+        
 
     def _start_api(self) -> None:
         from kater.api import create_api_server
@@ -166,11 +170,9 @@ class KaterRuntime:
             except Exception as exc:
                 _log.warning("api shutdown failed: %s", exc)
 
-        if self._use_proxy:
+        if self._use_proxy and self._proxy is not None:
             try:
-                from kater.proxy import get_proxy
-
-                get_proxy().stop()
+                self._proxy.stop()
             except Exception as exc:
                 _log.warning("proxy shutdown failed: %s", exc)
 
