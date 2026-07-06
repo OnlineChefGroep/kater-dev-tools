@@ -107,13 +107,13 @@ def tailscale_status() -> dict[str, Any]:
     return {"installed": True, "connected": False}
 
 
-def _check_tailscale_funnel() -> bool:
+def _check_tailscale_funnel(timeout: float = 5) -> bool:
     try:
         result = subprocess.run(
             ["tailscale", "funnel", "status"],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=timeout,
         )
         return result.returncode == 0 and "on" in result.stdout.lower()
     except Exception as exc:
@@ -141,12 +141,12 @@ def cloudflared_status(tunnel_name: str = "kater") -> dict[str, Any]:
     }
 
 
-def _is_cloudflared_running() -> bool:
+def _is_cloudflared_running(timeout: float = 3) -> bool:
     try:
         result = subprocess.run(
             ["pgrep", "-f", "cloudflared.*tunnel"],
             capture_output=True,
-            timeout=3,
+            timeout=timeout,
         )
         return result.returncode == 0
     except Exception as exc:
@@ -235,11 +235,14 @@ def start_cloudflared(
             stderr=subprocess.DEVNULL,
         )
 
-        # Dynamic wait for initialization or early crash
-        for _ in range(20):
+        # Dynamic wait for initialization or early crash, bounded by an
+        # overall deadline so subprocess timeouts can't multiply into long stalls.
+        deadline = time.monotonic() + 1.0
+        while time.monotonic() < deadline:
             if proc.poll() is not None:
                 break
-            if _is_cloudflared_running():
+            remaining = deadline - time.monotonic()
+            if _is_cloudflared_running(timeout=max(0.05, min(0.2, remaining))):
                 break
             time.sleep(0.05)
 
@@ -299,11 +302,14 @@ def start_tailscale_funnel(port: int = 9090) -> TunnelInfo:
             stderr=subprocess.DEVNULL,
         )
 
-        # Dynamic wait for initialization or early crash
-        for _ in range(20):
+        # Dynamic wait for initialization or early crash, bounded by an
+        # overall deadline so subprocess timeouts can't multiply into long stalls.
+        deadline = time.monotonic() + 1.0
+        while time.monotonic() < deadline:
             if proc.poll() is not None:
                 break
-            if _check_tailscale_funnel():
+            remaining = deadline - time.monotonic()
+            if _check_tailscale_funnel(timeout=max(0.05, min(0.2, remaining))):
                 break
             time.sleep(0.05)
 
