@@ -681,7 +681,7 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
   transition: border-color var(--t-fast);
 }
 .auth-card input:hover { border-color: var(--border-strong); }
-.auth-card input:focus { border-color: var(--accent); outline: none; }
+.auth-card input:focus { border-color: var(--accent); }
 .auth-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
 
 /* ── Responsive ─────────────────────────────────────── */
@@ -1467,11 +1467,27 @@ function onCanvasMove(e) {
 }
 
 async function onCanvasClick(e) {
-  if (!hoveredNode) {
+  // Re-hit-test on click instead of trusting `hoveredNode`, which can become
+  // stale after `buildNodes()` rebuilds the `nodes` array.
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  let clickedNode = null;
+  for (const n of nodes) {
+    const dx = x - n.x, dy = y - n.y;
+    if (dx * dx + dy * dy < (n.r + 8) * (n.r + 8)) {
+      clickedNode = n;
+      break;
+    }
+  }
+
+  if (!clickedNode) {
     if (selectedNode) closeDetail();
     return;
   }
-  let node = hoveredNode;
+
+  let node = clickedNode;
   // Catalog nodes carry no `mcp` field; fetch the full server doc so the
   // detail panel can show a real Launch Command instead of '-'.
   if (!node.mcp) {
