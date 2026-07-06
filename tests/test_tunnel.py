@@ -57,34 +57,93 @@ def test_tunnel_overview_defaults(monkeypatch):
 
 
 def test_stop_cloudflared_with_managed_unit_success(monkeypatch):
-    monkeypatch.setattr("kater.tunnel._managed_unit", lambda: "test.service")
-    monkeypatch.setattr(
-        "kater.tunnel._systemctl", lambda *args: subprocess.CompletedProcess(args, 0, stdout="")
-    )
-    assert stop_cloudflared() is True
+    # Exercise the public behavior by mocking external calls, not private helpers.
+    monkeypatch.setenv("KATER_TUNNEL_UNIT", "test.service")
 
-def test_stop_cloudflared_with_managed_unit_failure(monkeypatch):
-    monkeypatch.setattr("kater.tunnel._managed_unit", lambda: "test.service")
-    monkeypatch.setattr(
-        "kater.tunnel._systemctl", lambda *args: subprocess.CompletedProcess(args, 1, stdout="")
-    )
-    assert stop_cloudflared() is False
+    def mock_which(cmd: str):
+        return "/bin/systemctl" if cmd == "systemctl" else None
 
-def test_stop_cloudflared_with_managed_unit_none(monkeypatch):
-    monkeypatch.setattr("kater.tunnel._managed_unit", lambda: "test.service")
-    monkeypatch.setattr("kater.tunnel._systemctl", lambda *args: None)
-    assert stop_cloudflared() is False
+    monkeypatch.setattr("kater.tunnel.shutil.which", mock_which)
 
-def test_stop_cloudflared_no_managed_unit_success(monkeypatch):
-    monkeypatch.setattr("kater.tunnel._managed_unit", lambda: None)
     def mock_run(args, **kwargs):
-        pass
+        if args == ["systemctl", "--user", "cat", "test.service"]:
+            return subprocess.CompletedProcess(args, 0, stdout="")
+        if args == ["systemctl", "--user", "stop", "test.service"]:
+            return subprocess.CompletedProcess(args, 0, stdout="")
+        raise AssertionError(f"unexpected args: {args}")
+
     monkeypatch.setattr(subprocess, "run", mock_run)
     assert stop_cloudflared() is True
 
-def test_stop_cloudflared_no_managed_unit_failure(monkeypatch):
-    monkeypatch.setattr("kater.tunnel._managed_unit", lambda: None)
+
+def test_stop_cloudflared_with_managed_unit_failure(monkeypatch):
+    monkeypatch.setenv("KATER_TUNNEL_UNIT", "test.service")
+
+    def mock_which(cmd: str):
+        return "/bin/systemctl" if cmd == "systemctl" else None
+
+    monkeypatch.setattr("kater.tunnel.shutil.which", mock_which)
+
     def mock_run(args, **kwargs):
-        raise Exception("Command failed")
+        if args == ["systemctl", "--user", "cat", "test.service"]:
+            return subprocess.CompletedProcess(args, 0, stdout="")
+        if args == ["systemctl", "--user", "stop", "test.service"]:
+            return subprocess.CompletedProcess(args, 1, stdout="")
+        raise AssertionError(f"unexpected args: {args}")
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+    assert stop_cloudflared() is False
+
+
+def test_stop_cloudflared_with_managed_unit_systemctl_failure(monkeypatch):
+    monkeypatch.setenv("KATER_TUNNEL_UNIT", "test.service")
+
+    def mock_which(cmd: str):
+        return "/bin/systemctl" if cmd == "systemctl" else None
+
+    monkeypatch.setattr("kater.tunnel.shutil.which", mock_which)
+
+    def mock_run(args, **kwargs):
+        if args == ["systemctl", "--user", "cat", "test.service"]:
+            return subprocess.CompletedProcess(args, 0, stdout="")
+        if args == ["systemctl", "--user", "stop", "test.service"]:
+            raise RuntimeError("systemctl failed")
+        raise AssertionError(f"unexpected args: {args}")
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+    assert stop_cloudflared() is False
+
+
+def test_stop_cloudflared_no_managed_unit_success(monkeypatch):
+    monkeypatch.delenv("KATER_TUNNEL_UNIT", raising=False)
+
+    def mock_which(cmd: str):
+        # Simulate systemctl not available -> stop_cloudflared falls back to pkill.
+        return None
+
+    monkeypatch.setattr("kater.tunnel.shutil.which", mock_which)
+
+    def mock_run(args, **kwargs):
+        if args == ["pkill", "-f", "cloudflared.*tunnel"]:
+            return subprocess.CompletedProcess(args, 0, stdout="")
+        raise AssertionError(f"unexpected args: {args}")
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+    assert stop_cloudflared() is True
+
+
+def test_stop_cloudflared_no_managed_unit_failure(monkeypatch):
+    monkeypatch.delenv("KATER_TUNNEL_UNIT", raising=False)
+
+    def mock_which(cmd: str):
+        return None
+
+    monkeypatch.setattr("kater.tunnel.shutil.which", mock_which)
+
+    def mock_run(args, **kwargs):
+        if args == ["pkill", "-f", "cloudflared.*tunnel"]:
+            raise RuntimeError("Command failed")
+        raise AssertionError(f"unexpected args: {args}")
+
     monkeypatch.setattr(subprocess, "run", mock_run)
     assert stop_cloudflared() is False
