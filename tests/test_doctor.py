@@ -17,6 +17,7 @@ def test_load_cursor_mcp_oserror(monkeypatch, tmp_path) -> None:
 
     # Path is used by pathlib, we can just monkeypatch pathlib.Path.read_text
     import pathlib
+
     def mock_read_text(*args, **kwargs):
         raise OSError("Permission denied")
 
