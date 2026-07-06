@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import keyword
 import logging
 from importlib import import_module
 from typing import Any
@@ -36,14 +37,25 @@ def create_server(*, profile: str = "core") -> Any:
 def register_proxy_tools(server: Any, *, proxy: Any, profile: str) -> None:
     del profile
     try:
-        for tool_def in proxy.list_tools():
-            _make_proxy_tool(server, tool_def, proxy)
+        tool_defs = proxy.list_tools()
     except Exception as exc:
         _log.warning("proxy tool registration failed: %s", exc)
         _register_proxy_status_tool(server, proxy=proxy, enabled=False)
         return
 
-    _register_proxy_status_tool(server, proxy=proxy, enabled=True)
+    any_registered = False
+    for tool_def in tool_defs:
+        try:
+            _make_proxy_tool(server, tool_def, proxy)
+            any_registered = True
+        except Exception as exc:
+            _log.warning(
+                "proxy tool registration failed for %s: %s",
+                tool_def.get("name", "<unknown>"),
+                exc,
+            )
+
+    _register_proxy_status_tool(server, proxy=proxy, enabled=any_registered)
 
 
 def _register_proxy_status_tool(
@@ -73,8 +85,27 @@ def _build_proxy_handler(
         args = {k: v for k, v in kwargs.items() if v is not None}
         return proxy.call_tool(tool_name, args)
 
+    fallback_signature = inspect.Signature(
+        parameters=[
+            inspect.Parameter(
+                "kwargs",
+                inspect.Parameter.VAR_KEYWORD,
+                annotation=Any,
+            )
+        ]
+    )
+
     params: list[inspect.Parameter] = []
+    invalid_prop_names: list[str] = []
     for prop_name in properties:
+        if (
+            not isinstance(prop_name, str)
+            or not prop_name.isidentifier()
+            or keyword.iskeyword(prop_name)
+        ):
+            invalid_prop_names.append(repr(prop_name))
+            continue
+
         is_required = prop_name in required
         default = inspect.Parameter.empty if is_required else None
 
@@ -87,9 +118,26 @@ def _build_proxy_handler(
             )
         )
 
+    # If the remote schema contains invalid Python identifiers, avoid crashing
+    # signature creation and fall back to a permissive **kwargs signature.
+    if invalid_prop_names:
+        _log.debug(
+            "invalid proxy schema parameter names for %s: %s",
+            tool_name,
+            ", ".join(invalid_prop_names),
+        )
+        handler.__signature__ = fallback_signature  # type: ignore
+        handler.__name__ = tool_name
+        handler.__doc__ = tool_name
+        return handler
+
     # Non-default parameters must come before those with defaults
     params.sort(key=lambda p: p.default is not inspect.Parameter.empty)
-    handler.__signature__ = inspect.Signature(parameters=params)  # type: ignore
+    try:
+        handler.__signature__ = inspect.Signature(parameters=params)  # type: ignore
+    except ValueError:
+        handler.__signature__ = fallback_signature  # type: ignore
+
     handler.__name__ = tool_name
     handler.__doc__ = tool_name
     return handler
