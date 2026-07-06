@@ -45,7 +45,9 @@ def _error_ref() -> dict[str, Any]:
     }
 
 
-def _add_core_paths(paths: dict[str, Any]) -> None:
+def _add_core_paths() -> dict[str, Any]:
+    paths: dict[str, Any] = {}
+
     paths["/health"] = {
         "get": _response(
             "Health check",
@@ -67,7 +69,13 @@ def _add_core_paths(paths: dict[str, Any]) -> None:
         }
     }
 
-def _add_oauth_paths(paths: dict[str, Any]) -> None:
+    return paths
+
+
+
+def _add_oauth_paths() -> dict[str, Any]:
+    paths: dict[str, Any] = {}
+
     paths["/.well-known/oauth-authorization-server"] = {
         "get": _response(
             "OAuth 2.0 authorization server metadata (RFC 8414)",
@@ -192,7 +200,13 @@ def _add_oauth_paths(paths: dict[str, Any]) -> None:
         }
     }
 
-def _add_api_core_paths(paths: dict[str, Any]) -> None:
+    return paths
+
+
+
+def _add_api_core_paths() -> dict[str, Any]:
+    paths: dict[str, Any] = {}
+
     paths["/api/profiles"] = {
         "get": _response(
             "List profiles",
@@ -250,7 +264,13 @@ def _add_api_core_paths(paths: dict[str, Any]) -> None:
         }
     }
 
-def _add_mcp_paths(paths: dict[str, Any]) -> None:
+    return paths
+
+
+
+def _add_mcp_paths() -> dict[str, Any]:
+    paths: dict[str, Any] = {}
+
     paths["/api/mcp/servers"] = {
         "get": _response(
             "List MCP servers",
@@ -315,7 +335,13 @@ def _add_mcp_paths(paths: dict[str, Any]) -> None:
         }
     }
 
-def _add_system_paths(paths: dict[str, Any]) -> None:
+    return paths
+
+
+
+def _add_system_paths() -> dict[str, Any]:
+    paths: dict[str, Any] = {}
+
     paths["/api/settings"] = {
         "get": _response("Get settings", _ref("Settings")),
         "post": {
@@ -372,7 +398,13 @@ def _add_system_paths(paths: dict[str, Any]) -> None:
         )
     }
 
-def _add_deploy_tunnel_paths(paths: dict[str, Any]) -> None:
+    return paths
+
+
+
+def _add_deploy_tunnel_paths() -> dict[str, Any]:
+    paths: dict[str, Any] = {}
+
     paths["/api/deploy"] = {
         "get": _response(
             "List deployment formats",
@@ -480,14 +512,18 @@ def _add_deploy_tunnel_paths(paths: dict[str, Any]) -> None:
         }
     }
 
+    return paths
+
+
+
 def _build_paths() -> dict[str, Any]:
     paths: dict[str, Any] = {}
-    _add_core_paths(paths)
-    _add_oauth_paths(paths)
-    _add_api_core_paths(paths)
-    _add_mcp_paths(paths)
-    _add_system_paths(paths)
-    _add_deploy_tunnel_paths(paths)
+    paths.update(_add_core_paths())
+    paths.update(_add_oauth_paths())
+    paths.update(_add_api_core_paths())
+    paths.update(_add_mcp_paths())
+    paths.update(_add_system_paths())
+    paths.update(_add_deploy_tunnel_paths())
     return paths
 
 
