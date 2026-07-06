@@ -353,7 +353,7 @@ def test_dashboard_html(api_server) -> None:
 
 
 def test_settings_update_partial_auth_merges(api_server) -> None:
-    from kater.settings import load_settings
+    from kater.oauth import create_token
 
     # Initial settings
     _post(
@@ -368,8 +368,7 @@ def test_settings_update_partial_auth_merges(api_server) -> None:
         },
     )
 
-    # Partial patch: changing mode to oauth shouldn't wipe api_keys
-    # Note: the API response redacts api_keys to just their length, so we check the actual settings
+    # Partial patch: changing mode to oauth shouldn't wipe other auth settings.
     _post(
         9912,
         "/api/settings",
@@ -377,7 +376,19 @@ def test_settings_update_partial_auth_merges(api_server) -> None:
         headers={"Authorization": "Bearer test-secret"},
     )
 
-    settings = load_settings()
-    assert settings.auth.mode == "oauth"
-    assert settings.auth.api_keys == ["test-secret"]
-    assert settings.auth.oauth_issuer == "https://example.com"
+    token = create_token("test_client", "tools", "core")
+    data = _get(9912, "/api/settings", headers={"Authorization": f"Bearer {token['access_token']}"})
+
+    assert data["auth"]["mode"] == "oauth"
+    assert data["auth"]["oauth_issuer"] == "https://example.com"
+
+    # /api/settings redacts api_keys; ensure it wasn't wiped by the partial update.
+    api_keys = data["auth"].get("api_keys")
+    if isinstance(api_keys, int):
+        assert api_keys == 1
+    elif isinstance(api_keys, list):
+        assert len(api_keys) == 1
+        assert "test-secret" not in json.dumps(api_keys)
+    else:
+        raise AssertionError(f"Unexpected api_keys redaction type: {type(api_keys)!r}")
+
