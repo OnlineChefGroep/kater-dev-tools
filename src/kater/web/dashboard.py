@@ -418,6 +418,14 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
   content: ''; position: absolute; bottom: 0; left: 14px; right: 14px;
   height: 2px; background: var(--accent); border-radius: 2px 2px 0 0;
 }
+.tab-num {
+  font-family: var(--mono); font-size: 9px; margin-left: 8px;
+  padding: 1px 4px; border-radius: 4px; border: 1px solid var(--border);
+  color: var(--text-dim); transition: var(--transition);
+}
+.tab.active .tab-num {
+  border-color: var(--accent); color: var(--accent);
+}
 /* ── Views ────────────────────────────── */
 .view { display: none; flex: 1; overflow: hidden; }
 .view.active { display: flex; flex-direction: column; }
@@ -691,6 +699,7 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
   #app { height: auto; min-height: 100dvh; }
   .nav-tabs { padding: 0 8px; }
   .tab { flex: 1 0 auto; justify-content: center; padding: 0 12px; }
+  .tab-num { display: none; }
   .bento { grid-template-columns: 1fr; grid-template-rows: 1fr 200px auto; }
   .constellation-tile { grid-column: 1; }
   .telemetry-tile { grid-column: 1; grid-row: 2; }
@@ -726,7 +735,7 @@ _HTML_SHELL_TOP = r"""
   <div class="topbar">
     <div class="topbar-left">
       <div class="brand">
-        <div class="brand-dot"></div>
+        <div class="brand-dot" aria-hidden="true"></div>
         KATER
         <span class="version-tag" id="version-tag">v0.0.0</span>
       </div>
@@ -2264,6 +2273,7 @@ async function loadCatalogView() {
       + (s.enabled ? (pending ? ' pending' : ' on') : '');
     toggle.setAttribute('role', 'switch');
     toggle.setAttribute('aria-checked', String(!!s.enabled));
+    toggle.setAttribute('aria-label', 'Toggle ' + s.name);
     toggle.setAttribute('tabindex', '0');
     toggle.title = pending ? 'On, but needs credentials to connect' : '';
     toggle.dataset.name = s.name;
