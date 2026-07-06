@@ -872,6 +872,9 @@ def tunnel_start_command(
     if info.error:
         typer.echo(f"Error: {info.error}", err=True)
         raise typer.Exit(code=1)
+    if not info.running or not info.url:
+        typer.echo("Error: tunnel did not start.", err=True)
+        raise typer.Exit(code=1)
     typer.echo(f"Tunnel started: {info.url}")
 
 

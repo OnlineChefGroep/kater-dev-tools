@@ -225,11 +225,24 @@ def _start_unmanaged_cloudflared(
             proc.wait(timeout=1)
         except subprocess.TimeoutExpired:
             pass
+
+        # If cloudflared exits immediately, don't report a successful start.
+        if proc.poll() is not None:
+            return TunnelInfo(
+                provider="cloudflare",
+                name=tunnel_name,
+                url=None,
+                running=False,
+                error=f"cloudflared exited with code {proc.returncode}",
+                pid=proc.pid,
+                config={"config_path": config_path, "domain": resolved_domain},
+            )
+
         return TunnelInfo(
             provider="cloudflare",
             name=tunnel_name,
             url=f"https://{resolved_domain}",
-            running=proc.poll() is None,
+            running=True,
             pid=proc.pid,
             config={"config_path": config_path, "domain": resolved_domain},
         )
