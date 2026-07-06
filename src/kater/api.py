@@ -907,30 +907,38 @@ def _tunnel_stop(req: Request) -> Response:
     return Response.json(200, {"provider": provider, "stopped": ok, "running": False})
 
 
-def _apply_settings_patch(settings: KaterSettings, body: dict[str, Any]) -> Response | None:
+def _apply_settings_patch(settings: KaterSettings, body: dict[str, Any]) -> KaterSettings | Response:
+    """Apply a partial settings patch without mutating the input settings.
+
+    Returns either an updated KaterSettings instance or an error Response.
+    """
+
+    updated = settings.model_copy(deep=True)
+
     if "auth" in body:
         auth_patch = body["auth"]
         if not isinstance(auth_patch, dict):
             return Response.json(400, {"error": "auth must be an object"})
-        current = settings.auth.model_dump()
+        current = updated.auth.model_dump()
         current.update({k: v for k, v in auth_patch.items() if k in current})
-        settings.auth = type(settings.auth).model_validate(current)
+        updated.auth = type(updated.auth).model_validate(current)
     if "cors_origins" in body:
-        settings.cors_origins = body["cors_origins"]
+        updated.cors_origins = body["cors_origins"]
     if "rate_limit_per_min" in body:
         try:
-            settings.rate_limit_per_min = int(body["rate_limit_per_min"])
+            updated.rate_limit_per_min = int(body["rate_limit_per_min"])
         except (TypeError, ValueError):
             return Response.json(400, {"error": "rate_limit_per_min must be an integer"})
         _reset_rate_limiter()
     if "default_profile" in body:
-        settings.default_profile = body["default_profile"]
+        updated.default_profile = body["default_profile"]
     if "storage_backend" in body:
         backend = body["storage_backend"]
         if backend not in ("sqlite", "jsonl"):
             return Response.json(400, {"error": "storage_backend must be sqlite or jsonl"})
-        settings.storage_backend = backend
-    return None
+        updated.storage_backend = backend
+
+    return updated
 
 
 def _validate_public_mode(settings: KaterSettings) -> Response | None:
@@ -966,8 +974,10 @@ def _update_settings(req: Request) -> Response:
     if not check_admin(req.header("authorization"), settings):
         return Response.json(403, {"error": "admin credential required for settings changes"})
 
-    if err := _apply_settings_patch(settings, body):
-        return err
+    patched = _apply_settings_patch(settings, body)
+    if isinstance(patched, Response):
+        return patched
+    settings = patched
 
     if err := _validate_public_mode(settings):
         return err
