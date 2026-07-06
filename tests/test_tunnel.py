@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import subprocess
-from unittest.mock import MagicMock, mock_open
+from unittest.mock import MagicMock
 
 from kater.tunnel import (
     detect_cloudflared,
@@ -55,24 +55,37 @@ def test_tunnel_overview_defaults(monkeypatch):
     monkeypatch.delenv("KATER_DOMAIN", raising=False)
     overview = tunnel_overview()
     assert overview["suggested_domain"] == "kater.example.com"
+
+
 def test_start_cloudflared_not_installed(monkeypatch):
-    monkeypatch.setattr("kater.tunnel.detect_cloudflared", lambda: False)
+    monkeypatch.setattr("shutil.which", lambda cmd: None)
     info = start_cloudflared()
     assert info.running is False
     assert info.error is not None and "cloudflared not installed" in info.error
     assert info.provider == "cloudflare"
 
-def test_start_cloudflared_managed_unit_success(monkeypatch):
-    monkeypatch.setattr("kater.tunnel.detect_cloudflared", lambda: True)
-    monkeypatch.setattr("kater.tunnel._managed_unit", lambda: "test-unit.service")
 
-    def mock_systemctl(cmd, unit):
-        if cmd == "start":
-            return subprocess.CompletedProcess(args=[], returncode=0, stdout="")
+def test_start_cloudflared_managed_unit_success(monkeypatch):
+    monkeypatch.setenv("KATER_TUNNEL_UNIT", "test-unit.service")
+
+    def mock_which(cmd: str):
+        if cmd in {"cloudflared", "systemctl"}:
+            return f"/usr/bin/{cmd}"
         return None
 
-    monkeypatch.setattr("kater.tunnel._systemctl", mock_systemctl)
-    monkeypatch.setattr("kater.tunnel._unit_active", lambda unit: False)  # Success
+    def mock_run(args, capture_output=True, text=True, timeout=8):
+        # args: ["systemctl", "--user", <cmd>, <unit>]
+        if args[:2] == ["systemctl", "--user"]:
+            if args[2] == "cat" and args[3] == "test-unit.service":
+                return subprocess.CompletedProcess(args=args, returncode=0, stdout="")
+            if args[2] == "start" and args[3] == "test-unit.service":
+                return subprocess.CompletedProcess(args=args, returncode=0, stdout="")
+            if args[2] == "is-active" and args[3] == "test-unit.service":
+                return subprocess.CompletedProcess(args=args, returncode=0, stdout="inactive")
+        raise AssertionError(f"Unexpected subprocess.run call: {args}")
+
+    monkeypatch.setattr("shutil.which", mock_which)
+    monkeypatch.setattr("subprocess.run", mock_run)
 
     info = start_cloudflared(domain="test.local")
     assert info.running is True
@@ -81,73 +94,106 @@ def test_start_cloudflared_managed_unit_success(monkeypatch):
     assert info.error is None
     assert info.config["managed_unit"] == "test-unit.service"
 
+
 def test_start_cloudflared_managed_unit_already_active(monkeypatch):
-    monkeypatch.setattr("kater.tunnel.detect_cloudflared", lambda: True)
-    monkeypatch.setattr("kater.tunnel._managed_unit", lambda: "test-unit.service")
+    monkeypatch.setenv("KATER_TUNNEL_UNIT", "test-unit.service")
 
-    # Simulate start command failing, but unit is active
-    def mock_systemctl(cmd, unit):
-        return subprocess.CompletedProcess(args=[], returncode=1, stdout="")
+    def mock_which(cmd: str):
+        if cmd in {"cloudflared", "systemctl"}:
+            return f"/usr/bin/{cmd}"
+        return None
 
-    monkeypatch.setattr("kater.tunnel._systemctl", mock_systemctl)
-    monkeypatch.setattr("kater.tunnel._unit_active", lambda unit: True)
+    def mock_run(args, capture_output=True, text=True, timeout=8):
+        if args[:2] == ["systemctl", "--user"]:
+            if args[2] == "cat" and args[3] == "test-unit.service":
+                return subprocess.CompletedProcess(args=args, returncode=0, stdout="")
+            if args[2] == "start" and args[3] == "test-unit.service":
+                return subprocess.CompletedProcess(args=args, returncode=1, stdout="")
+            if args[2] == "is-active" and args[3] == "test-unit.service":
+                return subprocess.CompletedProcess(args=args, returncode=0, stdout="active")
+        raise AssertionError(f"Unexpected subprocess.run call: {args}")
+
+    monkeypatch.setattr("shutil.which", mock_which)
+    monkeypatch.setattr("subprocess.run", mock_run)
 
     info = start_cloudflared(domain="test.local")
     assert info.running is True
     assert info.error == "Failed to start tunnel unit."
 
+
 def test_start_cloudflared_managed_unit_fail(monkeypatch):
-    monkeypatch.setattr("kater.tunnel.detect_cloudflared", lambda: True)
-    monkeypatch.setattr("kater.tunnel._managed_unit", lambda: "test-unit.service")
+    monkeypatch.setenv("KATER_TUNNEL_UNIT", "test-unit.service")
 
-    # Simulate start command failing, and unit is not active
-    def mock_systemctl(cmd, unit):
-        return subprocess.CompletedProcess(args=[], returncode=1, stdout="")
+    def mock_which(cmd: str):
+        if cmd in {"cloudflared", "systemctl"}:
+            return f"/usr/bin/{cmd}"
+        return None
 
-    monkeypatch.setattr("kater.tunnel._systemctl", mock_systemctl)
-    monkeypatch.setattr("kater.tunnel._unit_active", lambda unit: False)
+    def mock_run(args, capture_output=True, text=True, timeout=8):
+        if args[:2] == ["systemctl", "--user"]:
+            if args[2] == "cat" and args[3] == "test-unit.service":
+                return subprocess.CompletedProcess(args=args, returncode=0, stdout="")
+            if args[2] == "start" and args[3] == "test-unit.service":
+                return subprocess.CompletedProcess(args=args, returncode=1, stdout="")
+            if args[2] == "is-active" and args[3] == "test-unit.service":
+                return subprocess.CompletedProcess(args=args, returncode=0, stdout="inactive")
+        raise AssertionError(f"Unexpected subprocess.run call: {args}")
+
+    monkeypatch.setattr("shutil.which", mock_which)
+    monkeypatch.setattr("subprocess.run", mock_run)
 
     info = start_cloudflared(domain="test.local")
     assert info.running is False
     assert info.error == "Failed to start tunnel unit."
     assert info.url is None
 
-def test_start_cloudflared_popen_success(monkeypatch):
-    monkeypatch.setattr("kater.tunnel.detect_cloudflared", lambda: True)
-    monkeypatch.setattr("kater.tunnel._managed_unit", lambda: None)
-    monkeypatch.setattr("os.path.exists", lambda path: False)
-    monkeypatch.setattr("os.makedirs", lambda path, exist_ok: None)
-    monkeypatch.setattr("time.sleep", lambda s: None) # speed up test
 
-    m_open = mock_open()
-    monkeypatch.setattr("builtins.open", m_open)
+def test_start_cloudflared_popen_success(monkeypatch, tmp_path):
+    monkeypatch.setattr("shutil.which", lambda cmd: f"/usr/bin/{cmd}" if cmd == "cloudflared" else None)
+    monkeypatch.delenv("KATER_TUNNEL_UNIT", raising=False)
+    monkeypatch.setattr("time.sleep", lambda s: None)  # speed up test
+
+    config_path = tmp_path / "my-tunnel.yml"
 
     m_proc = MagicMock()
-    m_proc.poll.return_value = None # Process is running
+    m_proc.poll.return_value = None  # Process is running
     m_proc.pid = 12345
 
     monkeypatch.setattr("subprocess.Popen", lambda *args, **kwargs: m_proc)
 
-    info = start_cloudflared(tunnel_name="my-tunnel", domain="test.local")
+    info = start_cloudflared(
+        tunnel_name="my-tunnel",
+        config_path=str(config_path),
+        domain="test.local",
+    )
 
     assert info.running is True
     assert info.name == "my-tunnel"
     assert info.pid == 12345
     assert info.url == "https://test.local"
     assert info.error is None
-    m_open.assert_called_once()
 
-def test_start_cloudflared_popen_exception(monkeypatch):
-    monkeypatch.setattr("kater.tunnel.detect_cloudflared", lambda: True)
-    monkeypatch.setattr("kater.tunnel._managed_unit", lambda: None)
-    monkeypatch.setattr("os.path.exists", lambda path: True) # skip file creation
+    assert config_path.exists()
+    assert "tunnel: my-tunnel" in config_path.read_text()
+
+
+def test_start_cloudflared_popen_exception(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "shutil.which",
+        lambda cmd: f"/usr/bin/{cmd}" if cmd == "cloudflared" else None,
+    )
+    monkeypatch.delenv("KATER_TUNNEL_UNIT", raising=False)
+
+    # Provide an existing config file so start_cloudflared doesn't need to write one.
+    config_path = tmp_path / "my-tunnel.yml"
+    config_path.write_text("tunnel: my-tunnel\n")
 
     def raise_exception(*args, **kwargs):
         raise Exception("spawn error")
 
     monkeypatch.setattr("subprocess.Popen", raise_exception)
 
-    info = start_cloudflared(tunnel_name="my-tunnel")
+    info = start_cloudflared(tunnel_name="my-tunnel", config_path=str(config_path))
 
     assert info.running is False
     assert info.error == "spawn error"
