@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+import pathlib
 
-from kater.doctor import run_doctor
+from kater.doctor import resolve_cursor_mcp, run_doctor
 
 
 def test_doctor_passes_core_profile(monkeypatch, tmp_path) -> None:
@@ -97,9 +98,6 @@ def test_doctor_flags_dynamic_registration_without_token(monkeypatch, tmp_path) 
         for f in report.findings
     )
 
-import pathlib
-from pathlib import Path
-from kater.doctor import resolve_cursor_mcp
 
 def test_resolve_cursor_mcp_provided_path_exists(tmp_path) -> None:
     mcp_path = tmp_path / "mcp.json"
