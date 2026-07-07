@@ -954,7 +954,7 @@ _VIEW_DASHBOARD = r"""
   <div class="view active" id="view-dashboard" role="tabpanel"
     aria-labelledby="tab-dashboard" tabindex="0">
   <header class="view-header">
-    <span class="view-title">CONTROL PLANE</span>
+    <span class="view-title">Control plane</span>
     <span class="tile-title" id="node-count">0 nodes</span>
   </header>
   <div class="view-scroll">
@@ -962,7 +962,7 @@ _VIEW_DASHBOARD = r"""
 
       <section class="panel" id="panel-metrics">
         <div class="panel-head">
-          <span class="panel-title">KEY METRICS</span>
+          <span class="panel-title">Key metrics</span>
         </div>
         <dl class="metrics">
           <div class="metric">
@@ -990,49 +990,49 @@ _VIEW_DASHBOARD = r"""
 
       <section class="panel" id="panel-tunnels">
         <div class="panel-head">
-          <span class="panel-title">TUNNELS</span>
+          <span class="panel-title">Tunnels</span>
         </div>
         <dl class="kv">
           <div class="kv-row">
             <dt>cloudflare</dt>
             <dd><button class="btn" id="btn-cf" type="button"
               data-name="cloudflare"
-              onclick="toggleTunnel(this)">START</button></dd>
+              onclick="toggleTunnel(this)">Start</button></dd>
           </div>
           <div class="kv-row">
             <dt>tailscale</dt>
             <dd><button class="btn" id="btn-ts" type="button"
               data-name="tailscale"
-              onclick="toggleTunnel(this)">START</button></dd>
+              onclick="toggleTunnel(this)">Start</button></dd>
           </div>
         </dl>
       </section>
 
       <section class="panel" id="panel-constellation">
         <div class="panel-head">
-          <span class="panel-title">TOPOLOGY</span>
+          <span class="panel-title">Topology</span>
         </div>
         <canvas id="constellation-canvas"></canvas>
       </section>
 
       <section class="panel panel-wide" id="panel-telemetry">
         <div class="panel-head">
-          <span class="panel-title">LIVE TELEMETRY</span>
-          <span class="tag tag--accent" id="tlm-state">STREAM</span>
+          <span class="panel-title">Live telemetry</span>
+          <span class="tag tag--accent" id="tlm-state">Stream</span>
         </div>
         <div class="feed" id="telemetry-stream" role="log" aria-live="polite"></div>
       </section>
 
       <section class="panel" id="backend-health" aria-label="Backend health">
         <div class="panel-head">
-          <span class="panel-title">BACKEND HEALTH</span>
+          <span class="panel-title">Backend health</span>
         </div>
         <div class="feed" id="backend-health-body"></div>
       </section>
 
       <section class="panel panel-wide" id="recent-calls" aria-label="Recent calls">
         <div class="panel-head">
-          <span class="panel-title">RECENT CALLS</span>
+          <span class="panel-title">Recent calls</span>
         </div>
         <div class="feed" id="recent-calls-body"></div>
       </section>
@@ -1046,7 +1046,7 @@ _VIEW_CATALOG = r"""
   <div class="view" id="view-catalog" role="tabpanel"
     aria-labelledby="tab-catalog" tabindex="0" hidden>
     <header class="view-header">
-      <span class="view-title">SERVER CATALOG</span>
+      <span class="view-title">Server catalog</span>
       <span class="tile-title" id="catalog-count">0 servers</span>
     </header>
     <div class="view-scroll">
@@ -1058,7 +1058,7 @@ _VIEW_CATALOG = r"""
       </div>
       <section class="panel panel-full">
         <div class="panel-head">
-          <span class="panel-title">REGISTRY</span>
+          <span class="panel-title">Registry</span>
         </div>
         <div class="server-grid" id="catalog-grid">
           <div class="view-empty">Loading catalog...</div>
@@ -1072,12 +1072,12 @@ _VIEW_EVALS = r"""
   <div class="view" id="view-evals" role="tabpanel"
     aria-labelledby="tab-evals" tabindex="0" hidden>
     <header class="view-header">
-      <span class="view-title">TOOL PERFORMANCE</span>
+      <span class="view-title">Tool performance</span>
     </header>
     <div class="view-scroll">
       <section class="panel">
         <div class="panel-head">
-          <span class="panel-title">EVALUATION INDEX</span>
+          <span class="panel-title">Evaluation index</span>
         </div>
         <div class="eval-summary" id="eval-summary"></div>
         <table class="eval-table table-hard">
@@ -1095,12 +1095,12 @@ _VIEW_DEPLOY = r"""
   <div class="view" id="view-deploy" role="tabpanel"
     aria-labelledby="tab-deploy" tabindex="0" hidden>
     <header class="view-header">
-      <span class="view-title">DEPLOYMENT CONFIGS</span>
+      <span class="view-title">Deployment configs</span>
     </header>
     <div class="view-scroll">
       <section class="panel panel-doc">
         <div class="panel-head">
-          <span class="panel-title">DEPLOY MANIFEST</span>
+          <span class="panel-title">Deploy manifest</span>
         </div>
         <div class="code-tabs" id="deploy-tabs"></div>
         <div class="code-preview">
@@ -1116,20 +1116,20 @@ _VIEW_DEPLOY = r"""
   </div>
 """
 
-_VIEW_SETTINGS = r"""
+_VIEW_Settings = r"""
   <div class="view" id="view-settings" role="tabpanel"
     aria-labelledby="tab-settings" tabindex="0" hidden>
     <header class="view-header">
-      <span class="view-title">SETTINGS</span>
+      <span class="view-title">Settings</span>
     </header>
     <div class="view-scroll">
       <section class="panel">
         <div class="panel-head">
-          <span class="panel-title">GATEWAY CONFIG</span>
+          <span class="panel-title">Gateway config</span>
         </div>
         <form class="settings-form kv" onsubmit="return false;">
           <div class="form-field">
-            <label class="form-label" for="set-auth-mode">Auth Mode</label>
+            <label class="form-label" for="set-auth-mode">Auth mode</label>
             <select class="form-select" id="set-auth-mode">
               <option value="none">none</option>
               <option value="apikey">apikey</option>
@@ -1137,28 +1137,28 @@ _VIEW_SETTINGS = r"""
             </select>
           </div>
           <div class="form-field">
-            <label class="form-label" for="set-profile">Default Profile</label>
+            <label class="form-label" for="set-profile">Default profile</label>
             <input class="form-input" id="set-profile" type="text" />
           </div>
           <div class="form-field">
-            <label class="form-label" for="set-cors">CORS Origins</label>
+            <label class="form-label" for="set-cors">CORS origins</label>
             <input class="form-input" id="set-cors" type="text" />
             <div class="form-help">Comma-separated origins allowed to call the dashboard API.</div>
           </div>
           <div class="form-field">
-            <label class="form-label" for="set-rate-limit">Rate Limit / min</label>
+            <label class="form-label" for="set-rate-limit">Rate limit / min</label>
             <input class="form-input" id="set-rate-limit" type="number"
               min="0" />
             <div class="form-help">Public deployments should keep this above zero.</div>
           </div>
           <div class="form-field">
-            <label class="form-label" for="set-storage">Storage Backend</label>
+            <label class="form-label" for="set-storage">Storage backend</label>
             <select class="form-select" id="set-storage">
               <option value="sqlite">sqlite</option>
               <option value="jsonl">jsonl</option>
             </select>
           </div>
-          <button class="btn-save btn" onclick="saveSettings()">Save Settings</button>
+          <button class="btn-save btn" onclick="saveSettings()">Save settings</button>
         </form>
       </section>
     </div>
@@ -1263,7 +1263,7 @@ _HTML_SHELL_BOTTOM = r"""
       <button class="btn-action btn" id="confirm-cancel" type="button"
         onclick="closeConfirm()">Cancel</button>
       <button class="btn-action btn btn--danger" id="confirm-ok" type="button"
-        onclick="runConfirmed()">Confirm</button>
+        onclick="runConfirmed()">Confirm action</button>
     </div>
   </div>
 </div>
@@ -1277,7 +1277,7 @@ _HTML = (
     + _VIEW_CATALOG
     + _VIEW_EVALS
     + _VIEW_DEPLOY
-    + _VIEW_SETTINGS
+    + _VIEW_Settings
     + _HTML_SHELL_BOTTOM
 )
 
@@ -1454,6 +1454,7 @@ function trackedRAF(fn) {
   rafFrames.add(id);
   return id;
 }
+function trackedTimeout(fn, ms) {
   const id = setTimeout(() => { timers.delete(id); fn(); }, ms);
   timers.add(id);
   return id;
@@ -1888,7 +1889,7 @@ function connectSelected() {
 function beginOAuth() {
   setWsStatus('auth');
   const redirect = location.origin + (location.pathname || '/');
-  const url = '/oauth/authorize'
+  const url = '/authorize'
     + '?response_type=code&client_id=' + encodeURIComponent(OAUTH.client_id)
     + '&redirect_uri=' + encodeURIComponent(redirect)
     + '&state=' + encodeURIComponent(String(Date.now()));
@@ -2041,17 +2042,22 @@ function confirmAction(action, name, viaKeyboard) {
   const dlg = $('confirm');
   if (!dlg) return;
   const titles = {
-    enable: 'ENABLE SERVER', disable: 'DISABLE SERVER',
-    'save-credentials': 'SAVE CREDENTIALS',
+    enable: 'Enable server', disable: 'Disable server',
+    'save-credentials': 'Save credentials',
   };
   const bodies = {
     enable: 'Enabling "' + (name || '') + '" opens a live tool connection. Confirm?',
     disable: 'Disabling "' + (name || '') + '" cuts an active tool connection. Confirm?',
     'save-credentials': 'Saving credentials writes secrets to storage. Confirm?',
   };
-  const t = $('confirm-title'), b = $('confirm-body');
-  if (t) t.textContent = titles[action] || 'CONFIRM';
+  const labels = {
+    enable: 'Enable server', disable: 'Disable server',
+    'save-credentials': 'Save credentials',
+  };
+  const t = $('confirm-title'), b = $('confirm-body'), ok = $('confirm-ok');
+  if (t) t.textContent = titles[action] || 'Confirm action';
   if (b) b.textContent = bodies[action] || '';
+  if (ok) ok.textContent = labels[action] || 'Confirm action';
   // Emil keyboard rule: no entrance motion for keyboard users (Ent; real
   // users get the sharp .confirm-overlay transition). viaKeyboard may be an
   // event (detail===0 ⇒ keyboard) or a boolean flag.
