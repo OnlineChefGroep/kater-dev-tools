@@ -730,7 +730,7 @@ _HTML_SHELL_TOP = r"""
   <div class="topbar">
     <div class="topbar-left">
       <div class="brand">
-        <div class="brand-dot"></div>
+        <div class="brand-dot" aria-hidden="true"></div>
         KATER
         <span class="version-tag" id="version-tag">v0.0.0</span>
       </div>
@@ -738,11 +738,11 @@ _HTML_SHELL_TOP = r"""
     </div>
     <div class="topbar-right">
       <div class="status-chip">
-        <div class="status-dot off" id="ws-dot"></div>
+        <div class="status-dot off" id="ws-dot" aria-hidden="true"></div>
         <span id="ws-status">ws offline</span>
       </div>
       <div class="auth-badge">
-        <div class="auth-dot" id="auth-dot"></div>
+        <div class="auth-dot" id="auth-dot" aria-hidden="true"></div>
         <span id="auth-mode">none</span>
       </div>
     </div>
@@ -807,11 +807,13 @@ _VIEW_DASHBOARD = r"""
         <div class="mini-label">Tunnels</div>
         <div class="tunnel-item">
           <span class="tunnel-name">cloudflare</span>
-          <button class="btn-tunnel" id="btn-cf" onclick="toggleTunnel('cloudflare')">START</button>
+          <button class="btn-tunnel" id="btn-cf" onclick="toggleTunnel('cloudflare')"
+            aria-label="Start cloudflare tunnel">START</button>
         </div>
         <div class="tunnel-item">
           <span class="tunnel-name">tailscale</span>
-          <button class="btn-tunnel" id="btn-ts" onclick="toggleTunnel('tailscale')">START</button>
+          <button class="btn-tunnel" id="btn-ts" onclick="toggleTunnel('tailscale')"
+            aria-label="Start tailscale tunnel">START</button>
         </div>
       </div>
       <div class="mini-tile">
@@ -2052,6 +2054,8 @@ function setTunnelButton(provider, running) {
   btn.classList.toggle('active', !!running);
   btn.textContent = running ? 'ON' : 'START';
   btn.disabled = false;
+  const action = running ? 'Stop' : 'Start';
+  btn.setAttribute('aria-label', action + ' ' + provider + ' tunnel');
 }
 
 async function loadTunnelStatus() {
@@ -2076,6 +2080,9 @@ async function toggleTunnel(provider) {
   }
   btn.textContent = '...';
   btn.disabled = true;
+  const loadingLabel = (action === 'start' ? 'Starting' : 'Stopping')
+    + ' ' + provider + ' tunnel...';
+  btn.setAttribute('aria-label', loadingLabel);
   toast('tunnel ' + provider + ': ' + action + 'ing...');
   try {
     const data = await apiPost(
