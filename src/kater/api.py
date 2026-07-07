@@ -788,6 +788,7 @@ def _backends(_: Request) -> Response:
         200,
         {
             "servers": result,
+            "backends": result,
             "totals": {
                 "enabled": overview.get("enabled", 0),
                 "disabled": overview.get("disabled", 0),
