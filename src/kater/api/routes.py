@@ -18,7 +18,7 @@ from kater.api.models import Request, Response, route
 from kater.chains import list_chains
 
 if TYPE_CHECKING:
-    from kater.profiles import ToolSource
+    pass
 from kater.deploy import list_deploy_formats, render_deploy
 from kater.doctor import run_doctor
 from kater.profiles import get_source, list_profiles

@@ -141,8 +141,9 @@ def _sqlite_query(
             conditions.append("timestamp >= ?")
             params.append(since)
 
-        where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
-        query = f"SELECT * FROM events{where_clause}"
+        query = "SELECT * FROM events"
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
 
         if limit > 0:
             query += " ORDER BY timestamp ASC LIMIT ?"
