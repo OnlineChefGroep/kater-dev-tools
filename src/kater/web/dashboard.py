@@ -730,7 +730,7 @@ _HTML_SHELL_TOP = r"""
   <div class="topbar">
     <div class="topbar-left">
       <div class="brand">
-        <div class="brand-dot"></div>
+        <div class="brand-dot" aria-hidden="true"></div>
         KATER
         <span class="version-tag" id="version-tag">v0.0.0</span>
       </div>
@@ -807,11 +807,13 @@ _VIEW_DASHBOARD = r"""
         <div class="mini-label">Tunnels</div>
         <div class="tunnel-item">
           <span class="tunnel-name">cloudflare</span>
-          <button class="btn-tunnel" id="btn-cf" onclick="toggleTunnel('cloudflare')">START</button>
+          <button class="btn-tunnel" id="btn-cf" onclick="toggleTunnel('cloudflare')"
+            aria-label="Start cloudflare tunnel">START</button>
         </div>
         <div class="tunnel-item">
           <span class="tunnel-name">tailscale</span>
-          <button class="btn-tunnel" id="btn-ts" onclick="toggleTunnel('tailscale')">START</button>
+          <button class="btn-tunnel" id="btn-ts" onclick="toggleTunnel('tailscale')"
+            aria-label="Start tailscale tunnel">START</button>
         </div>
       </div>
       <div class="mini-tile">
@@ -1649,6 +1651,9 @@ function openDetail(node) {
   // Offer "Connect…" only when the server is missing the credentials it needs.
   const connectRow = document.getElementById('detail-connect-row');
   connectRow.style.display = (reqs.length && missing.length) ? '' : 'none';
+  if (reqs.length && missing.length) {
+    document.getElementById('btn-connect').setAttribute('aria-label', 'Connect ' + node.name);
+  }
 
   const enableBtn = document.getElementById('btn-enable');
   const disableBtn = document.getElementById('btn-disable');
@@ -2051,6 +2056,7 @@ function setTunnelButton(provider, running) {
   if (!btn) return;
   btn.classList.toggle('active', !!running);
   btn.textContent = running ? 'ON' : 'START';
+  btn.setAttribute('aria-label', (running ? 'Stop ' : 'Start ') + provider + ' tunnel');
   btn.disabled = false;
 }
 
@@ -2075,6 +2081,7 @@ async function toggleTunnel(provider) {
     }
   }
   btn.textContent = '...';
+  btn.setAttribute('aria-label', (running ? 'Stopping ' : 'Starting ') + provider + ' tunnel');
   btn.disabled = true;
   toast('tunnel ' + provider + ': ' + action + 'ing...');
   try {
@@ -2200,6 +2207,7 @@ async function loadCatalogView() {
       + (s.enabled ? (pending ? ' pending' : ' on') : '');
     toggle.setAttribute('role', 'switch');
     toggle.setAttribute('aria-checked', String(!!s.enabled));
+    toggle.setAttribute('aria-label', 'Toggle ' + s.name + ' server');
     toggle.setAttribute('tabindex', '0');
     toggle.title = pending ? 'On, but needs credentials to connect' : '';
     toggle.dataset.name = s.name;
