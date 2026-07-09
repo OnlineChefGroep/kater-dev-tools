@@ -10,15 +10,12 @@ import os
 import secrets
 import threading
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from urllib.parse import quote, urlencode
 
 from kater.adapters.external import scan_adapters
 from kater.api.models import Request, Response, route
 from kater.chains import list_chains
-
-if TYPE_CHECKING:
-    from kater.profiles import ToolSource
 from kater.deploy import list_deploy_formats, render_deploy
 from kater.doctor import run_doctor
 from kater.profiles import get_source, list_profiles
@@ -51,6 +48,7 @@ _CONSENT_TTL_SECONDS = 600
 _consent_nonces: dict[str, float] = {}
 _consent_lock = threading.Lock()
 
+
 def _env_truthy(name: str) -> bool:
     return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
@@ -70,7 +68,7 @@ def _cookie_value(req: Request, name: str) -> str:
     for part in cookie.split(";"):
         part = part.strip()
         if part.startswith(prefix):
-            return part[len(prefix):]
+            return part[len(prefix) :]
     return ""
 
 
@@ -164,6 +162,7 @@ def _ws_broadcast(event_type: str, data: dict[str, Any]) -> None:
         broadcast_event({"type": event_type, **data, "ts": time.time()})
     except ImportError:
         pass
+
 
 # ── Public endpoints (no auth) ─────────────────────────────────────
 
@@ -286,8 +285,7 @@ def _authorize(req: Request) -> Response:
         ),
     )
     response.headers["Set-Cookie"] = (
-        f"{_CONSENT_COOKIE}={consent_nonce}; Path=/authorize; "
-        "HttpOnly; SameSite=Lax; Max-Age=600"
+        f"{_CONSENT_COOKIE}={consent_nonce}; Path=/authorize; HttpOnly; SameSite=Lax; Max-Age=600"
     )
     return response
 
@@ -741,5 +739,3 @@ def _update_settings(req: Request) -> Response:
             )
     save_settings(settings)
     return Response.json(200, settings.to_safe_dict())
-
-

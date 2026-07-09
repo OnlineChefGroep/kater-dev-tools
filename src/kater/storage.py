@@ -141,19 +141,22 @@ def _sqlite_query(
             conditions.append("timestamp >= ?")
             params.append(since)
 
-        where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
-        query = f"SELECT * FROM events{where_clause}"
+        query = "SELECT * FROM events"
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
 
         if limit > 0:
             query += " ORDER BY timestamp ASC LIMIT ?"
             params.append(limit)
-            rows = db.execute(query, params).fetchall()
         else:
             # Unbounded request: cap to the most recent MAX_EVENTS, but return
             # them in chronological order so callers see a normal ASC stream.
             query += " ORDER BY timestamp DESC LIMIT ?"
             params.append(MAX_EVENTS)
-            rows = list(reversed(db.execute(query, params).fetchall()))
+
+        rows = db.execute(query, params).fetchall()
+        if limit <= 0:
+            rows = list(reversed(rows))
     return [_row_to_dict(row) for row in rows]
 
 
