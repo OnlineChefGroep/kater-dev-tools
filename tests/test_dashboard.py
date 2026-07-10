@@ -125,3 +125,11 @@ DASHBOARD_ENDPOINTS = [
 @pytest.mark.parametrize("method,path", DASHBOARD_ENDPOINTS)
 def test_dashboard_endpoint_exists_in_router(method, path):
     assert ROUTER.match(method, path) is not None, f"{method} {path} has no route"
+
+
+def test_dashboard_delegates_confirm_and_clears_timeouts():
+    html = render_dashboard()
+    assert "onEl(document, 'click'" in html or "document.addEventListener('click'" in html
+    assert "e.target.closest('[data-confirm]')" in html or "target.closest('[data-confirm]')" in html
+    assert "clearTimeout(" in html
+    assert "._hideTimer" in html

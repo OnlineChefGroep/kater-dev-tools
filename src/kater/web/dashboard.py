@@ -1618,13 +1618,17 @@ function switchView(view, opts) {
   qsa('[role="tabpanel"]').forEach((p) => {
     const show = p === panel;
     if (show) {
+      if (p._hideTimer) {
+        clearTimeout(p._hideTimer);
+        p._hideTimer = null;
+      }
       p.hidden = false;
       if (Kater.motion && Kater.motion.viewIn) Kater.motion.viewIn(p, opts);
     } else {
       if (Kater.motion && Kater.motion.viewOut) Kater.motion.viewOut(p, opts);
       // Delay hiding until the exit motion has painted (140ms), so the
       // fade/translate actually shows instead of being clipped by hidden.
-      trackedTimeout(() => { p.hidden = true; }, 160);
+      p._hideTimer = trackedTimeout(() => { p.hidden = true; }, 160);
     }
   });
   try { history.replaceState(null, '', '#' + view); } catch (e) {}
@@ -2096,14 +2100,14 @@ function detailToggleEnable(name, enabled) {
 }
 // Confirm-trigger bindings (delegated from markup data-confirm buttons).
 function initConfirmTriggers() {
-  qsa('[data-confirm]').forEach((btn) => {
-    onEl(btn, 'click', (e) => {
-      // toggleTunnel / code-copy buttons manage their own confirmation.
-      if (btn.dataset.confirm === 'tunnel') return;
-      e.preventDefault();
-      e.stopPropagation();
-      confirmAction(btn.dataset.confirm, btn.dataset.name || '', e);
-    });
+  onEl(document, 'click', (e) => {
+    const btn = e.target.closest('[data-confirm]');
+    if (!btn) return;
+    // toggleTunnel / code-copy buttons manage their own confirmation.
+    if (btn.dataset.confirm === 'tunnel') return;
+    e.preventDefault();
+    e.stopPropagation();
+    confirmAction(btn.dataset.confirm, btn.dataset.name || '', e);
   });
   onEl(document, 'keydown', (e) => {
     const dlg = $('confirm');
