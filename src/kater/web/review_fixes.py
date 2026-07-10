@@ -350,8 +350,8 @@ def _patch_api() -> None:
                 return
         raise RuntimeError(f"route not found: {method} {pattern}")
 
-    api._events = events
-    api._backends = backends
+    setattr(api, "_events", events)
+    setattr(api, "_backends", backends)
     replace_route("GET", "/api/events", events)
     replace_route("GET", "/api/backends", backends)
 
