@@ -761,6 +761,13 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
   text-transform: uppercase; letter-spacing: 1px;
 }
 .empty-note.err { color: var(--err); }
+.view-empty-link {
+  display: inline-block; margin-top: 8px;
+  color: var(--accent); text-decoration: underline; cursor: pointer;
+  background: none; border: none; padding: 0;
+  font: inherit; text-transform: inherit; letter-spacing: inherit;
+}
+.view-empty-link:hover { color: var(--ink); }
 .modal-overlay, .detail-panel, .view-scroll, .feed, .telemetry-stream {
   overscroll-behavior: contain;
 }
@@ -1049,14 +1056,15 @@ _VIEW_CATALOG = r"""
     aria-labelledby="tab-catalog" tabindex="0" hidden>
     <header class="view-header">
       <span class="view-title">SERVER CATALOG</span>
-      <span class="tile-title" id="catalog-count">0 servers</span>
+      <span class="tile-title" id="catalog-count"
+        aria-live="polite" aria-atomic="true">0 servers</span>
     </header>
     <div class="view-scroll">
       <div class="catalog-toolbar">
         <label class="sr-only" for="catalog-search">Search servers</label>
         <input class="form-input" id="catalog-search" type="search"
           placeholder="Search servers (e.g. search, github)..." autocomplete="off"
-          aria-label="Search servers">
+          aria-label="Search servers" aria-describedby="catalog-count">
       </div>
       <section class="panel panel-full">
         <div class="panel-head">
@@ -1643,6 +1651,14 @@ function switchView(view, opts) {
 }
 
 // ── Server list (catalog) ─────────────────────────────────────────────────
+window.clearSearch = () => {
+  const s = $('catalog-search');
+  if (s) {
+    s.value = '';
+    s.dispatchEvent(new Event('input'));
+  }
+};
+
 function renderCatalog() {
   const grid = $('catalog-grid');
   const count = $('catalog-count');
@@ -1661,7 +1677,11 @@ function renderCatalog() {
   if (count) count.textContent = filtered.length + ' / ' + list.length;
 
   if (filtered.length === 0) {
-    grid.innerHTML = '<div class="empty-note">No matching servers.</div>';
+    const note = q
+      ? '<div class="empty-note">No matching servers. <button class="view-empty-link" '
+        + 'onclick="clearSearch()">Clear search</button></div>'
+      : '<div class="empty-note">No matching servers.</div>';
+    grid.innerHTML = note;
     return;
   }
 
