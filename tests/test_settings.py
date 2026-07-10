@@ -42,6 +42,7 @@ def test_settings_roundtrip(tmp_path: Path):
 
 def test_save_settings_uses_owner_only_permissions(tmp_path: Path):
     import os
+
     import pytest
     if os.name == "nt":
         pytest.skip("Windows does not support POSIX permission modes")

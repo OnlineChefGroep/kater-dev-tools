@@ -148,10 +148,12 @@ function trackedTimeout(fn, ms) {
                 "'. Reload the dashboard; if it persists, check /api/deploy/config.', 'err')"
             ),
             "telegraph('clipboard blocked by browser', 'err')": (
-                "telegraph('Clipboard access was blocked. Allow clipboard access or copy the code manually.', 'err')"
+                "telegraph('Clipboard access was blocked. Allow "
+                "clipboard access or copy the code manually.', 'err')"
             ),
             "telegraph('clipboard unavailable', 'err')": (
-                "telegraph('Clipboard API is unavailable. Select the code and copy it manually.', 'err')"
+                "telegraph('Clipboard API is unavailable. Select "
+                "the code and copy it manually.', 'err')"
             ),
             "telegraph('settings load failed: ' + e.message, 'err')": (
                 "telegraph('Settings load failed: ' + e.message + "
@@ -228,7 +230,9 @@ function trackedTimeout(fn, ms) {
             'onclick="detailToggle(true)"': '',
             'onclick="detailToggle(false)"': '',
             '>Confirm</span>': '>Confirm action</span>',
-            'onclick="runConfirmed()">Confirm</button>': 'onclick="runConfirmed()">Continue</button>',
+            (
+                'onclick="runConfirmed()">Confirm</button>'
+            ): 'onclick="runConfirmed()">Continue</button>',
         },
     )
     dashboard._HTML = (
@@ -244,16 +248,22 @@ function trackedTimeout(fn, ms) {
 
 def _patch_api() -> None:
     import kater.api as api
+    import kater.api.routes as api_routes
+    import kater.api.server as api_server
+    import kater.proxy as proxy_mod
+    import kater.settings as settings_mod
+    import kater.storage as storage
+    import kater.telemetry as telemetry
 
     def events(req: Any) -> Any:
         try:
-            limit = api._parse_limit(req)
-            since = api._parse_since(req)
+            limit = api_routes._parse_limit(req)
+            since = api_routes._parse_since(req)
         except ValueError as exc:
             return api.Response.json(400, {"error": str(exc)})
         name = req.query1("name")
         success_raw = req.query1("success")
-        rows = api.query_events(limit=0, name=name or None, since=since)
+        rows = storage.query_events(limit=0, name=name or None, since=since)
         if success_raw is not None:
             wanted = success_raw.lower() == "true"
             rows = [row for row in rows if bool(row.get("success")) is wanted]
@@ -278,14 +288,14 @@ def _patch_api() -> None:
         _: Any,
         proxy_factory: Callable[[], Any] | None = None,
     ) -> Any:
-        overview = api.status_overview().get("servers", {})
+        overview = telemetry.status_overview().get("servers", {})
         totals = {
             "enabled": overview.get("enabled", 0),
             "disabled": overview.get("disabled", 0),
             "configured": overview.get("configured", 0),
             "missing_env": overview.get("missing_env", 0),
         }
-        settings = api.load_settings()
+        settings = settings_mod.load_settings()
         per_server: dict[str, dict[str, bool]] = {}
         import kater.profiles as profiles
 
@@ -298,11 +308,11 @@ def _patch_api() -> None:
                 "configured": bool(env_present),
                 "missing_env": not env_present,
             }
-        provider = proxy_factory or api.get_proxy
+        provider = proxy_factory or proxy_mod.get_proxy
         try:
             statuses = provider().statuses()
         except Exception as exc:
-            api._log.exception("failed to collect backend statuses")
+            api_server._log.exception("failed to collect backend statuses")
             return api.Response.json(
                 503,
                 {

@@ -51,12 +51,13 @@ def test_dashboard_primary_copy_is_sentence_case():
 
 
 def test_events_returns_newest_matching_rows_first(monkeypatch):
+    import kater.storage as storage
     rows = [
         {"type": "tool_call", "name": "one", "timestamp": 1.0, "success": True},
         {"type": "tool_call", "name": "two", "timestamp": 2.0, "success": True},
         {"type": "tool_call", "name": "three", "timestamp": 3.0, "success": True},
     ]
-    monkeypatch.setattr(api, "query_events", lambda **_: rows)
+    monkeypatch.setattr(storage, "query_events", lambda **_: rows)
     response = api._events(_request({"limit": ["2"]}))
     assert response.status == 200
     assert [event["name"] for event in response.payload["events"]] == ["three", "two"]
@@ -79,8 +80,9 @@ class _Proxy:
 
 
 def test_backends_accepts_injected_proxy_and_returns_compatible_shape(monkeypatch):
+    import kater.telemetry as telemetry
     monkeypatch.setattr(profiles, "all_tool_sources", lambda: [])
-    monkeypatch.setattr(api, "status_overview", lambda: {"servers": {"enabled": 1}})
+    monkeypatch.setattr(telemetry, "status_overview", lambda: {"servers": {"enabled": 1}})
     response = api._backends(_request(), proxy_factory=lambda: _Proxy())
     assert response.status == 200
     assert response.payload["backends"] == response.payload["servers"]
@@ -88,12 +90,13 @@ def test_backends_accepts_injected_proxy_and_returns_compatible_shape(monkeypatc
 
 
 def test_backends_failure_is_observable(monkeypatch, caplog):
+    import kater.telemetry as telemetry
     class FailingProxy:
         def statuses(self):
             raise RuntimeError("boom")
 
     monkeypatch.setattr(profiles, "all_tool_sources", lambda: [])
-    monkeypatch.setattr(api, "status_overview", lambda: {"servers": {}})
+    monkeypatch.setattr(telemetry, "status_overview", lambda: {"servers": {}})
     with caplog.at_level(logging.ERROR):
         response = api._backends(_request(), proxy_factory=lambda: FailingProxy())
     assert response.status == 503

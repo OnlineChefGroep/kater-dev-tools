@@ -26,8 +26,8 @@ KATER_DIR = Path.cwd() / ".kater"
 
 
 def _rmtree_robust(path: Path) -> None:
-    import time
     import gc
+    import time
     gc.collect()
     for _ in range(15):
         try:

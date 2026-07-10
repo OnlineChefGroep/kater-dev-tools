@@ -1,6 +1,6 @@
 # Dashboard / WS 502 Bad Gateway Recovery Runbook
 
-Use this runbook when the live Kater dashboard at `https://kater.chefgroep.online`
+Use this runbook when the live Kater dashboard at `https://kater.example.com`
 returns a Cloudflare **502 Bad Gateway** (Ray ID shown on the error page, e.g.
 Amsterdam edge). The API, dashboard, and `/ws` WebSocket are all served through a
 Cloudflare Tunnel (`cloudflared`) to the local Kater server.
@@ -36,9 +36,9 @@ Confirm these values before changing production:
 
 | Item | Expected source |
 | --- | --- |
-| Edge host | `kater.chefgroep.online` (Cloudflare Tunnel) |
+| Edge host | `kater.example.com` (Cloudflare Tunnel) |
 | App host | `jan` or `sofie` via Tailscale SSH |
-| Domain | `kater.chefgroep.online` |
+| Domain | `kater.example.com` |
 | `CLOUDFLARE_ACCOUNT_ID` | Secret manager / remote env; needed only to re-provision a tunnel |
 | Local API port | `127.0.0.1:9091` |
 
@@ -129,7 +129,7 @@ Re-provision the tunnel (requires `CLOUDFLARE_ACCOUNT_ID` in the environment):
 cd <app-dir>
 export CLOUDFLARE_ACCOUNT_ID=<secret-from-manager>
 bash scripts/provision-cloudflare-tunnel.sh
-uv run kater tunnel config -p cloudflare --domain kater.chefgroep.online
+uv run kater tunnel config -p cloudflare --domain kater.example.com
 systemctl --user restart kater-cloudflared.service
 ```
 
@@ -142,17 +142,17 @@ After the fix, confirm locally then via the edge:
 curl -sf http://127.0.0.1:9091/health && echo API_OK || echo API_DOWN
 
 # Edge health through the tunnel
-curl -fsS https://kater.chefgroep.online/health
+curl -fsS https://kater.example.com/health
 ```
 
-Then load `https://kater.chefgroep.online/dashboard` in a browser and open the
+Then load `https://kater.example.com/dashboard` in a browser and open the
 app's WebSocket-backed feature. Confirm there is **no 502** and the dashboard
 loads normally.
 
 Pass criteria:
 
 - `http://127.0.0.1:9091/health` returns `API_OK`.
-- `https://kater.chefgroep.online/health` responds successfully.
+- `https://kater.example.com/health` responds successfully.
 - `/dashboard` renders with no Cloudflare 502.
 - `/ws` upgrade succeeds (no 502 in the browser/network log).
 

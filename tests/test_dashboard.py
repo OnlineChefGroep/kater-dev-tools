@@ -129,7 +129,13 @@ def test_dashboard_endpoint_exists_in_router(method, path):
 
 def test_dashboard_delegates_confirm_and_clears_timeouts():
     html = render_dashboard()
-    assert "onEl(document, 'click'" in html or "document.addEventListener('click'" in html
-    assert "e.target.closest('[data-confirm]')" in html or "target.closest('[data-confirm]')" in html
+    assert (
+        "onEl(document, 'click'" in html
+        or "document.addEventListener('click'" in html
+    )
+    assert (
+        "e.target.closest('[data-confirm]')" in html
+        or "target.closest('[data-confirm]')" in html
+    )
     assert "clearTimeout(" in html
     assert "._hideTimer" in html
