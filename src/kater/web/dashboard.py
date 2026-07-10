@@ -916,11 +916,11 @@ _HTML_SHELL_TOP = r"""
     </div>
     <div class="topbar-right">
       <div class="tag" id="ws-chip">
-        <span class="status-dot off" id="ws-dot"></span>
+        <span class="status-dot off" id="ws-dot" aria-hidden="true"></span>
         <span id="ws-status">ws offline</span>
       </div>
       <div class="tag" id="auth-chip">
-        <span class="auth-dot" id="auth-dot"></span>
+        <span class="auth-dot" id="auth-dot" aria-hidden="true"></span>
         <span id="auth-mode">none</span>
       </div>
     </div>
@@ -997,12 +997,14 @@ _VIEW_DASHBOARD = r"""
             <dt>cloudflare</dt>
             <dd><button class="btn" id="btn-cf" type="button"
               data-name="cloudflare"
+              aria-label="Start cloudflare tunnel"
               onclick="toggleTunnel(this)">START</button></dd>
           </div>
           <div class="kv-row">
             <dt>tailscale</dt>
             <dd><button class="btn" id="btn-ts" type="button"
               data-name="tailscale"
+              aria-label="Start tailscale tunnel"
               onclick="toggleTunnel(this)">START</button></dd>
           </div>
         </dl>
@@ -1686,6 +1688,7 @@ function renderCatalog() {
       '<div class="server-card-foot">',
       '<span class="tag tag--muted">' + profs + '</span>',
       '<button class="btn ' + btnCls + '" id="' + ctlId + '" data-confirm="' + action + '"',
+      ' aria-label="' + btnTxt + ' ' + esc(s.name) + ' server"',
       ' data-name="' + esc(s.name) + '">' + btnTxt + '</button>',
       '</div>',
       '</article>',
