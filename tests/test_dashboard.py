@@ -143,8 +143,17 @@ def test_dashboard_delegates_confirm_and_clears_timeouts():
 
 def test_dashboard_catalog_search_accessibility():
     html = render_dashboard()
+    # Results counter is a polite live region, wired to the search input as its description.
     assert 'id="catalog-count" aria-live="polite"' in html
     assert 'id="catalog-search"' in html
     assert 'aria-describedby="catalog-count"' in html
-    assert "clearCatalogSearch()" in html
-    assert "view-empty-link" in html
+    # The announced count is self-describing (not a bare "N / M").
+    assert "list.length + ' servers'" in html
+    # The empty-state recovery control is a keyboard-native <button> wired to the clear
+    # handler, and is rendered only when a search query is present.
+    assert '<button type="button" class="view-empty-link"' in html
+    assert 'onclick="clearCatalogSearch()">Clear search</button>' in html
+    assert "if (q) {" in html
+    # clearCatalogSearch cancels any pending debounce so it cannot fire a redundant render.
+    assert "function clearCatalogSearch()" in html
+    assert "{ clearTimeout(catalogSearchTimer); catalogSearchTimer = null; }" in html
