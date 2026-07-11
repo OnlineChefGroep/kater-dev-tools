@@ -584,6 +584,11 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
   padding: 48px 20px; text-align: center;
   font-family: var(--mono); font-size: 12px; color: var(--ink-dim);
 }
+.view-empty-link {
+  display: inline-block; margin-top: 12px;
+  color: var(--accent); text-decoration: none; cursor: pointer;
+}
+.view-empty-link:hover { text-decoration: underline; }
 .catalog-toolbar {
   padding: 10px 12px 0;
   position: sticky; top: 0; z-index: 2;
@@ -1049,14 +1054,14 @@ _VIEW_CATALOG = r"""
     aria-labelledby="tab-catalog" tabindex="0" hidden>
     <header class="view-header">
       <span class="view-title">SERVER CATALOG</span>
-      <span class="tile-title" id="catalog-count">0 servers</span>
+      <span class="tile-title" id="catalog-count" aria-live="polite">0 servers</span>
     </header>
     <div class="view-scroll">
       <div class="catalog-toolbar">
         <label class="sr-only" for="catalog-search">Search servers</label>
         <input class="form-input" id="catalog-search" type="search"
           placeholder="Search servers (e.g. search, github)..." autocomplete="off"
-          aria-label="Search servers">
+          aria-label="Search servers" aria-describedby="catalog-count">
       </div>
       <section class="panel panel-full">
         <div class="panel-head">
@@ -1661,7 +1666,14 @@ function renderCatalog() {
   if (count) count.textContent = filtered.length + ' / ' + list.length;
 
   if (filtered.length === 0) {
-    grid.innerHTML = '<div class="empty-note">No matching servers.</div>';
+    let emptyMsg = '<div class="empty-note">No matching servers.';
+    if (q) {
+      emptyMsg += ' <a class="view-empty-link" role="button" tabindex="0" ' +
+        'onclick="clearCatalogSearch()" onkeydown="btnKey(event,clearCatalogSearch)">' +
+        'Clear search</a>';
+    }
+    emptyMsg += '</div>';
+    grid.innerHTML = emptyMsg;
     return;
   }
 
@@ -1697,6 +1709,13 @@ function renderCatalog() {
   }).join('');
 
   grid.innerHTML = cards;
+}
+
+function clearCatalogSearch() {
+  catalogQuery = '';
+  const search = $('catalog-search');
+  if (search) { search.value = ''; search.focus(); }
+  renderCatalog();
 }
 
 function loadCatalog() {

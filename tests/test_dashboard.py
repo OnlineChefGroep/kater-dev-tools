@@ -139,3 +139,12 @@ def test_dashboard_delegates_confirm_and_clears_timeouts():
     )
     assert "clearTimeout(" in html
     assert "._hideTimer" in html
+
+
+def test_dashboard_catalog_search_accessibility():
+    html = render_dashboard()
+    assert 'id="catalog-count" aria-live="polite"' in html
+    assert 'id="catalog-search"' in html
+    assert 'aria-describedby="catalog-count"' in html
+    assert "clearCatalogSearch()" in html
+    assert "view-empty-link" in html
