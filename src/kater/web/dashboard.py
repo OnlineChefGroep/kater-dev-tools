@@ -43,12 +43,15 @@ body {
 
 ::selection { background: var(--accent-bg); color: var(--accent); }
 
-/* Quality floor: every interactive element shows a visible hard focus ring. */
+/* Quality floor: every interactive element shows a visible hard focus ring.
+   scroll-margin-top keeps a focused field clear of any host/topbar chrome
+   (e.g. when the dashboard is embedded under an IDE browser overlay). */
 a:focus-visible, button:focus-visible, input:focus-visible,
 select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
   outline: 2px solid var(--line);
   outline-offset: 2px;
   border-radius: var(--radius);
+  scroll-margin-top: 64px;
 }
 
 /* Visually hidden but accessible to screen readers. */
@@ -109,7 +112,8 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
 /* ── Topbar ────────────────────────────── */
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 20px; min-height: 56px;
+  /* safe-area top padding clears host/topbar chrome (IDE browser overlays) */
+  padding: env(safe-area-inset-top, 0px) 20px; min-height: 56px;
   border-bottom: 2px solid var(--line);
   background: var(--paper);
   gap: 16px;
