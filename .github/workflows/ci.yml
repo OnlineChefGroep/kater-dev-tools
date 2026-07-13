@@ -177,8 +177,23 @@ jobs:
       - name: Sync dependencies (frozen)
         run: uv sync --frozen --dev
 
+      - name: Start Kater
+        run: |
+          uv run kater serve &
+          echo $! > /tmp/kater.pid
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:9091/health >/dev/null 2>&1; then
+              echo "kater healthy"; break
+            fi
+            sleep 1
+          done
+
       - name: End-to-end MCP check
         run: ./scripts/e2e-mcp.sh
+
+      - name: Stop Kater
+        if: always()
+        run: kill "$(cat /tmp/kater.pid)" 2>/dev/null || true
 
       - name: Smoke test
         run: ./scripts/smoke.sh
