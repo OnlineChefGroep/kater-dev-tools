@@ -80,11 +80,11 @@ def test_chains_json() -> None:
 
 
 def test_chains_filtered_by_profile() -> None:
-    result = runner.invoke(app, ["chains", "--profile", "utrecht"])
+    result = runner.invoke(app, ["chains", "--profile", "demo_private"])
 
     assert result.exit_code == 0
-    assert "utrecht_status" in result.output
-    assert "research_brief" not in result.output
+    assert "demo_private_chain" in strip_ansi(result.output)
+    assert "research_brief" not in strip_ansi(result.output)
 
 
 def test_chain_run_research_brief() -> None:
