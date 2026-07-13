@@ -43,8 +43,10 @@ before each session. Use `uv run <cmd>` for everything.
 - **Proxy backends are optional**: live proxying of the 29+ backend MCP servers needs `KATER_PROXY=1`,
   a profile, per-backend API keys, and Node/`npx` (present) for stdio backends. Core gateway works
   without any of this — native tools (`kater_profiles`, etc.) are always exposed.
-- **Known dashboard gotcha**: the web dashboard at `:9091` currently renders a blocking confirm
-  overlay on load in a headless browser (the `#confirm` element uses the HTML `hidden` attribute while
-  the CSS/JS gate on a `.hidden` class), so GUI automation may not reach the main view. This is a
-  pre-existing frontend bug, not an environment issue — verify functionality via the REST API, the
-  `kater` CLI, or `./scripts/e2e-mcp.sh` instead.
+- **Architecture**: `kater serve` is a single Python process. The dashboard (`src/kater/web/dashboard.py`)
+  is a self-contained inline HTML/CSS/JS document rendered server-side; REST routes live in
+  `src/kater/api/`, the MCP SSE/stdio surface is in `src/kater/proxy/` and `src/kater/mcp/`, and state
+  is SQLite under `.kater/`. There is no separate frontend build step.
+- **Dashboard verification**: the dashboard hydrates without a blocking confirm overlay (the old
+  import-time `review_fixes.py` monkeypatch layer was removed in #94/#95). Validate the gateway via
+  the REST API, the `kater` CLI, or `./scripts/e2e-mcp.sh` rather than headless GUI automation.
