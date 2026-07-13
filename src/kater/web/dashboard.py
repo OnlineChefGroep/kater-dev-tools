@@ -54,7 +54,9 @@ a, button, input, select, textarea, [role="switch"], [tabindex] {
 .danger { color: var(--red); }
 
 .topbar {
-  position: sticky; z-index: 20; top: 0; min-height: 50px;
+  position: sticky; z-index: 20; top: 0;
+  /* border-box: include inset in min-height so content stays ~50px and matches .nav offset */
+  min-height: calc(50px + env(safe-area-inset-top, 0px));
   /* safe-area top padding only — do not mirror onto bottom via 2-value shorthand */
   padding: 0 18px;
   padding-top: env(safe-area-inset-top, 0px);
