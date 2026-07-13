@@ -463,7 +463,9 @@ const views = ['dashboard', 'catalog', 'evals', 'deploy', 'settings'];
 const state = {
   token: sessionStorage.getItem('kater_auth') || '',
   catalog: [], profiles: [], backends: [], deploy: [], deployFormat: '',
-  drawerServer: null, ws: null, wsAttempt: 0, destroyed: false,
+  drawerServer: null,
+  ws: null, wsConnecting: false, wsOpen: false, wsRetry: null, wsAttempt: 0, wsGeneration: 0,
+  destroyed: false,
 };
 const timers = new Set();
 const controllers = new Set();
@@ -558,6 +560,60 @@ function errorMessage(error) { return error && error.message ? error.message : '
 function setApiStatus(ok) {
   $('api-dot').className = 'dot ' + (ok ? 'ok' : 'bad');
   $('api-status').textContent = ok ? 'API online' : 'API unavailable';
+}
+function dialogFocusables(dialog) {
+  return qsa('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])', dialog)
+    .filter((element) => !element.hidden && element.getAttribute('aria-hidden') !== 'true');
+}
+function openDialog(dialog, initialFocus, onEscape) {
+  if (dialog._dialogState) return;
+  const priorFocus = document.activeElement;
+  const background = Array.from(document.body.children).filter((element) => element !== dialog).map((element) => ({
+    element,
+    inert: element.inert,
+    ariaHidden: element.getAttribute('aria-hidden'),
+  }));
+  background.forEach(({element}) => {
+    element.inert = true;
+    element.setAttribute('aria-hidden', 'true');
+  });
+  const keydown = (event) => {
+    event.stopPropagation();
+    if (event.key === 'Escape' && onEscape) {
+      event.preventDefault();
+      onEscape();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusables = dialogFocusables(dialog);
+    if (!focusables.length) { event.preventDefault(); dialog.focus(); return; }
+    const first = focusables[0], last = focusables[focusables.length - 1];
+    if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+      event.preventDefault(); first.focus();
+    }
+  };
+  dialog._dialogState = {background, priorFocus, keydown};
+  dialog.hidden = false;
+  dialog.addEventListener('keydown', keydown);
+  const target = initialFocus || dialogFocusables(dialog)[0] || dialog;
+  if (target === dialog && !dialog.hasAttribute('tabindex')) dialog.setAttribute('tabindex', '-1');
+  target.focus();
+}
+function closeDialog(dialog) {
+  const dialogState = dialog._dialogState;
+  if (!dialogState) { dialog.hidden = true; return; }
+  dialog.hidden = true;
+  dialog.removeEventListener('keydown', dialogState.keydown);
+  dialogState.background.forEach(({element, inert, ariaHidden}) => {
+    element.inert = inert;
+    if (ariaHidden == null) element.removeAttribute('aria-hidden');
+    else element.setAttribute('aria-hidden', ariaHidden);
+  });
+  dialog._dialogState = null;
+  const priorFocus = dialogState.priorFocus;
+  if (priorFocus && priorFocus.isConnected && priorFocus.focus) priorFocus.focus();
 }
 
 function activateView(name, focus) {
@@ -693,11 +749,12 @@ function drawTopology() {
   ctx.clearRect(0, 0, width, height);
   const center = {x: width / 2, y: height / 2};
   const list = state.backends.slice(0, 16);
+  const radius = {x: width * .38, y: height * .34};
   ctx.font = '10px monospace';
   ctx.textAlign = 'center';
   list.forEach((server, index) => {
     const angle = (Math.PI * 2 * index / Math.max(list.length, 1)) - Math.PI / 2;
-    const point = {x: center.x + Math.cos(angle) * Math.min(width * .37, 180), y: center.y + Math.sin(angle) * 72};
+    const point = {x: center.x + Math.cos(angle) * radius.x, y: center.y + Math.sin(angle) * radius.y};
     ctx.strokeStyle = '#29313a'; ctx.beginPath(); ctx.moveTo(center.x, center.y); ctx.lineTo(point.x, point.y); ctx.stroke();
     ctx.fillStyle = server.healthy ? '#63c58b' : '#e06c75'; ctx.fillRect(point.x - 3, point.y - 3, 6, 6);
     ctx.fillStyle = '#87919c'; ctx.fillText(String(server.name || '').slice(0, 18), point.x, point.y + 15);
@@ -786,20 +843,17 @@ function closeDrawer() {
 
 function confirmAction(action, name, callback) {
   const labels = {enable: 'Enable server', disable: 'Disable server', 'save-credentials': 'Save credentials', 'start-tunnel': 'Start tunnel', 'stop-tunnel': 'Stop tunnel'};
-  confirmCtx = {action, name, callback, ok: $('confirm-ok'), origin: document.activeElement};
+  confirmCtx = {action, name, callback, ok: $('confirm-ok')};
   $('confirm-title').textContent = labels[action] || 'Confirm action';
   $('confirm-body').textContent = action === 'save-credentials'
     ? 'Credential values will be stored in Kater settings and applied to the live process.'
     : (labels[action] || 'Apply action') + (name ? ' “' + name + '”?' : '?');
   confirmCtx.ok.textContent = labels[action] || 'Confirm';
-  $('confirm').hidden = false;
-  confirmCtx.ok.focus();
+  openDialog($('confirm'), confirmCtx.ok, closeConfirm);
 }
 function closeConfirm() {
-  $('confirm').hidden = true;
-  const origin = confirmCtx && confirmCtx.origin;
   confirmCtx = null;
-  if (origin && origin.focus) origin.focus();
+  closeDialog($('confirm'));
 }
 async function runConfirmed() {
   if (!confirmCtx) return;
@@ -930,7 +984,8 @@ function pushFeed(event) {
   const bad = event.success === false || event.type === 'error';
   const label = event.name || event.server || event.source || event.type || 'event';
   const message = event.message || event.detail || event.type || 'Update received';
-  row.innerHTML = '<span>' + esc(time(event.timestamp || event.ts || Date.now())) + '</span><span class="'
+  const timestamp = event.timestamp != null ? event.timestamp : (event.ts != null ? event.ts : Date.now() / 1000);
+  row.innerHTML = '<span>' + esc(time(timestamp)) + '</span><span class="'
     + (bad ? 'bad' : (ok ? 'ok' : 'warn')) + '">' + esc(label) + '</span><span>' + esc(message) + '</span>';
   feed.prepend(row);
   while (feed.children.length > 100) feed.lastElementChild.remove();
@@ -944,14 +999,39 @@ function setWsStatus(status) {
   $('ws-dot').className = 'dot ' + (status === 'online' ? 'ok' : (status === 'connecting' ? 'warn' : 'bad'));
   $('ws-status').textContent = 'Live feed ' + status;
 }
+function clearWsRetry() {
+  if (state.wsRetry == null) return;
+  clearTimeout(state.wsRetry);
+  timers.delete(state.wsRetry);
+  state.wsRetry = null;
+}
+function scheduleWsReconnect() {
+  if (state.destroyed || state.wsRetry != null || state.wsConnecting || state.wsOpen || state.ws) return;
+  const wait = Math.min(30000, 1000 * Math.pow(2, state.wsAttempt++));
+  state.wsRetry = trackedTimeout(() => {
+    state.wsRetry = null;
+    connectWebSocket();
+  }, wait);
+}
 async function connectWebSocket() {
-  if (state.destroyed) return;
+  if (state.destroyed || state.wsConnecting || state.wsOpen || state.ws) return;
+  clearWsRetry();
+  const generation = ++state.wsGeneration;
+  state.wsConnecting = true;
   setWsStatus('connecting');
   try {
-    const socket = new WebSocket(await websocketUrl());
+    const url = await websocketUrl();
+    if (state.destroyed || generation !== state.wsGeneration) return;
+    const socket = new WebSocket(url);
     state.ws = socket;
-    socket.onopen = () => { state.wsAttempt = 0; setWsStatus('online'); };
+    socket.onopen = () => {
+      if (state.ws !== socket || state.destroyed || generation !== state.wsGeneration) return;
+      state.wsConnecting = false; state.wsOpen = true; state.wsAttempt = 0;
+      clearWsRetry();
+      setWsStatus('online');
+    };
     socket.onmessage = (message) => {
+      if (state.ws !== socket || state.destroyed || generation !== state.wsGeneration) return;
       try {
         const event = JSON.parse(message.data);
         pushFeed(event);
@@ -959,17 +1039,20 @@ async function connectWebSocket() {
         if (event.type === 'tool_call' || event.type === 'error') { loadEvents(); loadStatus(); }
       } catch (_) {}
     };
-    socket.onerror = () => socket.close();
+    socket.onerror = () => { if (state.ws === socket) socket.close(); };
     socket.onclose = () => {
-      if (state.ws !== socket || state.destroyed) return;
-      state.ws = null; setWsStatus('offline');
-      const wait = Math.min(30000, 1000 * Math.pow(2, state.wsAttempt++));
-      trackedTimeout(connectWebSocket, wait);
+      if (state.ws !== socket || generation !== state.wsGeneration) return;
+      state.ws = null; state.wsConnecting = false; state.wsOpen = false;
+      if (state.destroyed) return;
+      setWsStatus('offline');
+      scheduleWsReconnect();
     };
   } catch (_) {
+    if (generation !== state.wsGeneration) return;
+    state.ws = null; state.wsConnecting = false; state.wsOpen = false;
+    if (state.destroyed) return;
     setWsStatus('offline');
-    const wait = Math.min(30000, 1000 * Math.pow(2, state.wsAttempt++));
-    trackedTimeout(connectWebSocket, wait);
+    scheduleWsReconnect();
   }
 }
 
@@ -1020,16 +1103,19 @@ async function finishOAuth() {
   if (!response.ok || !data.access_token) throw new Error(data.error || 'OAuth exchange failed');
   state.token = data.access_token;
   sessionStorage.setItem('kater_auth', state.token);
+  closeDialog($('auth-gate'));
   sessionStorage.removeItem('kater_oauth_state');
   sessionStorage.removeItem('kater_pkce_verifier');
   history.replaceState(null, '', location.pathname + (location.hash || ''));
   return true;
 }
-function showAuth() { $('auth-gate').hidden = false; }
+function showAuth() { openDialog($('auth-gate'), $('auth-key')); }
 function submitApiKey() {
   const key = $('auth-key').value.trim();
   if (!key) return;
-  state.token = key; sessionStorage.setItem('kater_auth', key); $('auth-gate').hidden = true;
+  state.token = key; sessionStorage.setItem('kater_auth', key);
+  clearWsRetry();
+  closeDialog($('auth-gate'));
   loadAll(); connectWebSocket();
 }
 
@@ -1079,12 +1165,15 @@ function initDelegation() {
 }
 function teardown() {
   state.destroyed = true;
+  state.wsGeneration++;
+  clearWsRetry();
   timers.forEach((id) => { clearTimeout(id); clearInterval(id); });
   timers.clear();
   controllers.forEach((controller) => controller.abort());
   controllers.clear();
   listeners.forEach(([target, type, fn, options]) => target.removeEventListener(type, fn, options));
   listeners.length = 0;
+  state.wsConnecting = false; state.wsOpen = false;
   if (state.ws) { const socket = state.ws; state.ws = null; socket.onclose = null; socket.close(1000); }
 }
 async function init() {

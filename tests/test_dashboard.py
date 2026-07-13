@@ -172,3 +172,49 @@ def test_dashboard_delegates_confirm_and_clears_timeouts():
         or "document.addEventListener('click'" in html
     )
     assert "clearTimeout(" in html
+
+
+def test_dashboard_dialogs_trap_focus_and_restore_background():
+    html = render_dashboard()
+    assert "function openDialog(dialog, initialFocus, onEscape)" in html
+    assert "function closeDialog(dialog)" in html
+    assert "event.key !== 'Tab'" in html
+    assert "event.shiftKey" in html
+    assert "element.inert = true" in html
+    assert "element.inert = inert" in html
+    assert "element.setAttribute('aria-hidden', 'true')" in html
+    assert "priorFocus.isConnected" in html
+    assert "openDialog($('confirm'), confirmCtx.ok, closeConfirm)" in html
+    assert "openDialog($('auth-gate'), $('auth-key'))" in html
+    assert "closeDialog($('auth-gate'))" in html
+
+
+def test_dashboard_websocket_tracks_connection_and_retry_lifecycle():
+    html = render_dashboard()
+    for marker in (
+        "wsConnecting: false",
+        "wsOpen: false",
+        "wsRetry: null",
+        "function clearWsRetry()",
+        "function scheduleWsReconnect()",
+        "state.destroyed || state.wsConnecting || state.wsOpen || state.ws",
+        "generation !== state.wsGeneration",
+        "state.wsGeneration++",
+    ):
+        assert marker in html
+    assert html.count("clearWsRetry();") >= 4
+
+
+def test_dashboard_feed_fallback_timestamp_uses_epoch_seconds():
+    html = render_dashboard()
+    assert "event.timestamp != null ? event.timestamp" in html
+    assert "event.ts != null ? event.ts" in html
+    assert "Date.now() / 1000" in html
+    assert "event.timestamp || event.ts || Date.now()" not in html
+
+
+def test_dashboard_topology_scales_in_both_dimensions():
+    html = render_dashboard()
+    assert "const radius = {x: width * .38, y: height * .34}" in html
+    assert "Math.sin(angle) * radius.y" in html
+    assert "Math.sin(angle) * 72" not in html
