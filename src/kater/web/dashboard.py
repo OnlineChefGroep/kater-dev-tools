@@ -1242,6 +1242,7 @@ let streamPaused = false;
 let streamErrorsOnly = false;
 let catalogFilter = 'all';
 let catalogItems = [];
+let catalogLoadSeq = 0;
 let lastEventTotal = null;
 let lastLiveMs = 0;
 const HIST = 40;
@@ -2865,7 +2866,9 @@ async function loadCatalogView() {
   if (search && search.value.trim() !== catalogQuery) {
     catalogQuery = search.value.trim();
   }
+  const seq = ++catalogLoadSeq;
   const data = await api(catalogApiPath());
+  if (seq !== catalogLoadSeq) return;  // superseded by a newer search/filter load; ignore stale response
   const grid = document.getElementById('catalog-grid');
   catalogItems = filterServers(data.servers || []);
   const items = catalogFilter === 'all'
