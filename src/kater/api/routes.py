@@ -509,13 +509,14 @@ def _events(req: Request) -> Response:
         return Response.json(400, {"error": str(exc)})
     name = req.query1("name")
     success_raw = req.query1("success")
-    # query_events filters by event_type, not name-based tool success; we fetch
-    # by name/since then filter the success boolean in memory.
-    rows = storage.query_events(limit=0, name=name or None, since=since)
-    if success_raw is not None:
-        wanted = success_raw.lower() == "true"
-        rows = [r for r in rows if bool(r.get("success")) is wanted]
-    rows = list(reversed(rows[-limit:]))
+    success = success_raw.lower() == "true" if success_raw is not None else None
+    rows = storage.query_events(
+        limit=limit,
+        name=name or None,
+        since=since,
+        success=success,
+        newest_first=True,
+    )
     events = []
     for idx, r in enumerate(rows):
         events.append(
@@ -560,7 +561,7 @@ def _backends(
     provider = proxy_factory or get_proxy
     try:
         statuses = provider().statuses()
-    except Exception as exc:
+    except Exception:
         from kater.api.server import _log
 
         _log.exception("failed to collect backend statuses")
@@ -569,7 +570,6 @@ def _backends(
             {
                 "error": "backend_status_unavailable",
                 "message": "Backend status collection failed; check gateway logs and retry.",
-                "detail": str(exc),
                 "backends": [],
                 "servers": [],
                 "totals": totals,

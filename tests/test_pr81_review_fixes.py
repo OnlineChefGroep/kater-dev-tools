@@ -59,15 +59,37 @@ def test_dashboard_primary_copy_is_sentence_case():
 
 def test_events_returns_newest_matching_rows_first(monkeypatch):
     import kater.storage as storage
+
     rows = [
-        {"type": "tool_call", "name": "one", "timestamp": 1.0, "success": True},
-        {"type": "tool_call", "name": "two", "timestamp": 2.0, "success": True},
         {"type": "tool_call", "name": "three", "timestamp": 3.0, "success": True},
+        {"type": "tool_call", "name": "two", "timestamp": 2.0, "success": True},
     ]
-    monkeypatch.setattr(storage, "query_events", lambda **_: rows)
-    response = api._events(_request({"limit": ["2"]}))
+    query_args = {}
+
+    def query_events(**kwargs):
+        query_args.update(kwargs)
+        return rows
+
+    monkeypatch.setattr(storage, "query_events", query_events)
+    response = api._events(
+        _request(
+            {
+                "limit": ["5000"],
+                "name": ["github"],
+                "since": ["1.5"],
+                "success": ["TRUE"],
+            }
+        )
+    )
     assert response.status == 200
     assert [event["name"] for event in response.payload["events"]] == ["three", "two"]
+    assert query_args == {
+        "limit": 1000,
+        "name": "github",
+        "since": 1.5,
+        "success": True,
+        "newest_first": True,
+    }
 
 
 class _Status:
@@ -98,9 +120,12 @@ def test_backends_accepts_injected_proxy_and_returns_compatible_shape(monkeypatc
 
 def test_backends_failure_is_observable(monkeypatch, caplog):
     import kater.telemetry as telemetry
+
+    secret = "postgres://admin:password@internal.example/db"
+
     class FailingProxy:
         def statuses(self):
-            raise RuntimeError("boom")
+            raise RuntimeError(secret)
 
     monkeypatch.setattr(profiles, "all_tool_sources", lambda: [])
     monkeypatch.setattr(telemetry, "status_overview", lambda: {"servers": {}})
@@ -108,4 +133,18 @@ def test_backends_failure_is_observable(monkeypatch, caplog):
         response = api._backends(_request(), proxy_factory=lambda: FailingProxy())
     assert response.status == 503
     assert response.payload["error"] == "backend_status_unavailable"
+    assert response.payload["message"] == (
+        "Backend status collection failed; check gateway logs and retry."
+    )
+    assert response.payload["backends"] == []
+    assert response.payload["servers"] == []
+    assert set(response.payload) == {
+        "error",
+        "message",
+        "backends",
+        "servers",
+        "totals",
+    }
+    assert secret not in repr(response.payload)
     assert "failed to collect backend statuses" in caplog.text
+    assert secret in caplog.text
