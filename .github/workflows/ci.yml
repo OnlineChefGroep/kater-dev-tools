@@ -205,7 +205,7 @@ jobs:
       - name: Install into a clean venv and smoke
         run: |
           uv venv /tmp/kater-pkg-test
-          /tmp/kater-pkg-test/bin/python -m pip install dist/*.whl
+          uv pip install --python /tmp/kater-pkg-test dist/*.whl
           /tmp/kater-pkg-test/bin/kater version
           /tmp/kater-pkg-test/bin/kater doctor
           /tmp/kater-pkg-test/bin/kater --help
@@ -222,14 +222,15 @@ jobs:
           print("package contents ok")
           PY
 
-  # ── security-pr: supply chain + secret + code scanning ────────────────
+  # ── security-pr: supply chain + secret scanning ───────────────────────
+  # (CodeQL is already enforced repo-wide via default setup scanning
+  #  python + actions, so we don't upload a second SARIF here.)
   security-pr:
     needs: [validate]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
-      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -249,14 +250,6 @@ jobs:
 
       - name: Ruff security rules
         run: uv run ruff check --select S .
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@641a925cfafe92d0fdf8b239ba4053e3f8d99d6d # v3
-        with:
-          languages: python
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@641a925cfafe92d0fdf8b239ba4053e3f8d99d6d # v3
 
       - name: Diff-based secret scan
         run: |
