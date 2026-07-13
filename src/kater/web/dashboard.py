@@ -2880,20 +2880,27 @@ async function loadCatalogView() {
     const empty = document.createElement('div');
     empty.className = 'view-empty';
     empty.style.gridColumn = '1 / -1';
-    if (catalogQuery) {
+    const addLink = (label, handler) => {
+      const btn = document.createElement('button');
+      btn.className = 'view-empty-link';
+      btn.textContent = label;
+      btn.onclick = handler;
+      empty.appendChild(btn);
+    };
+    const hasQuery = !!catalogQuery;
+    const hasFilter = catalogFilter !== 'all';
+    if (hasQuery && hasFilter) {
+      // Both constraints are active, so either could be the cause: describe the
+      // combined state and offer both recovery actions rather than only one.
+      empty.textContent = 'No servers match "' + catalogQuery + '" in this status.';
+      addLink('Clear search', clearCatalogSearch);
+      addLink('Switch filter to all', resetCatalogFilter);
+    } else if (hasQuery) {
       empty.textContent = 'No servers match "' + catalogQuery + '".';
-      const clear = document.createElement('button');
-      clear.className = 'view-empty-link';
-      clear.textContent = 'Clear search';
-      clear.onclick = clearCatalogSearch;
-      empty.appendChild(clear);
-    } else if (catalogFilter !== 'all') {
+      addLink('Clear search', clearCatalogSearch);
+    } else if (hasFilter) {
       empty.textContent = 'No servers in this status.';
-      const reset = document.createElement('button');
-      reset.className = 'view-empty-link';
-      reset.textContent = 'Switch filter to all';
-      reset.onclick = resetCatalogFilter;
-      empty.appendChild(reset);
+      addLink('Switch filter to all', resetCatalogFilter);
     } else {
       empty.textContent = 'No servers in this profile. Switch profiles in the top bar.';
     }
