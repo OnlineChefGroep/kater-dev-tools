@@ -60,10 +60,8 @@ jobs:
       - name: OpenAPI snapshot check
         run: uv run python -c "import kater.openapi_spec as s; assert s.build_spec(); print('openapi ok')"
 
-      - name: Check generated files are committed
-        run: |
-          uv run ruff check --fix --diff || true
-          git diff --exit-code || { echo "generated/formatted files out of date"; exit 1; }
+      - name: Check formatting is committed
+        run: uv run ruff format --check .
 
       - name: Lint workflow files
         run: |

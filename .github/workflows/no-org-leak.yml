@@ -26,6 +26,11 @@ jobs:
           # Full history only for scheduled/release full scans; PRs diff-scan.
           fetch-depth: ${{ github.event_name == 'pull_request' && 1 || 0 }}
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          enable-cache: true
+
       - name: Org-leak guard (explicit allowlist script)
         run: uv run python scripts/no_org_leak.py --base "${{ github.event_name == 'pull_request' && 'origin/main' || '' }}"
 
