@@ -2187,6 +2187,9 @@ function initCatalogSearch() {
   if (!input || input.dataset.bound) return;
   input.dataset.bound = '1';
   input.addEventListener('input', () => {
+    // Invalidate any in-flight catalog load now, so a response for the previous
+    // query can't render during the debounce window before the reload below starts.
+    catalogLoadSeq++;
     if (catalogSearchTimer) clearTimeout(catalogSearchTimer);
     catalogSearchTimer = setTimeout(async () => {
       catalogSearchTimer = null;
