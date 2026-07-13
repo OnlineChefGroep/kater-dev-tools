@@ -55,6 +55,11 @@ body {
 
 ::selection { background: var(--accent-dim); }
 
+/* Keep focused controls clear of host/topbar chrome (IDE browser overlays). */
+a, button, input, select, textarea, [role="switch"], [tabindex] {
+  scroll-margin-top: 64px;
+}
+
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
