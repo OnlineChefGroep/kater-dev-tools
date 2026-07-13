@@ -460,8 +460,14 @@ def _deploy_formats(_: Request) -> Response:
 
 @route("GET", "/api/deploy/{format}")
 def _deploy_render(req: Request) -> Response:
+    fmt = req.params["format"]
     profile = os.environ.get("KATER_PROFILE", "core")
-    return Response.json(200, render_deploy(req.params["format"], profile=profile))
+    known = {entry["name"] for entry in list_deploy_formats()}
+    if fmt not in known:
+        return Response.json(
+            404, {"error": f"Unknown format '{fmt}'. Available: {', '.join(known)}"}
+        )
+    return Response.json(200, render_deploy(fmt, profile=profile))
 
 
 @route("GET", "/api/status")

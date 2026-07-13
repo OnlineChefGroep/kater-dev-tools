@@ -175,6 +175,11 @@ def test_deploy_render(api_server) -> None:
     assert data["format"] == "docker-compose"
 
 
+def test_deploy_render_unknown_format_404(api_server) -> None:
+    err = _get_err(9912, "/api/deploy/nonexistent")
+    assert err.code == 404
+
+
 # ── Auth ───────────────────────────────────────────────────────────
 
 
