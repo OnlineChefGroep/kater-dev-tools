@@ -10,6 +10,7 @@ import os
 import secrets
 import threading
 import time
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, urlencode
 
@@ -31,7 +32,6 @@ from kater.settings import (
     save_settings,
     unsafe_public_settings_override_enabled,
 )
-from kater.storage import query_events
 from kater.telemetry import (
     eval_summary,
     load_events,
@@ -500,6 +500,8 @@ def _parse_since(req: Request) -> float | None:
 
 @route("GET", "/api/events")
 def _events(req: Request) -> Response:
+    import kater.storage as storage
+
     try:
         limit = _parse_limit(req)
         since = _parse_since(req)
@@ -509,10 +511,11 @@ def _events(req: Request) -> Response:
     success_raw = req.query1("success")
     # query_events filters by event_type, not name-based tool success; we fetch
     # by name/since then filter the success boolean in memory.
-    rows = query_events(limit=limit, name=name or None, since=since)
+    rows = storage.query_events(limit=0, name=name or None, since=since)
     if success_raw is not None:
         wanted = success_raw.lower() == "true"
         rows = [r for r in rows if bool(r.get("success")) is wanted]
+    rows = list(reversed(rows[-limit:]))
     events = []
     for idx, r in enumerate(rows):
         events.append(
@@ -531,26 +534,47 @@ def _events(req: Request) -> Response:
 
 
 @route("GET", "/api/backends")
-def _backends(_: Request) -> Response:
+def _backends(
+    _: Request,
+    proxy_factory: Callable[[], Any] | None = None,
+) -> Response:
     overview = status_overview().get("servers", {})
+    totals = {
+        "enabled": overview.get("enabled", 0),
+        "disabled": overview.get("disabled", 0),
+        "configured": overview.get("configured", 0),
+        "missing_env": overview.get("missing_env", 0),
+    }
+    settings = load_settings()
     per_server: dict[str, dict[str, bool]] = {}
     for source in __import__("kater.profiles", fromlist=["all_tool_sources"]).all_tool_sources():
         if source.transport == "native":
             continue
-        import os
-
         env_present = all(os.environ.get(v) for v in source.env)
         per_server[source.name] = {
-            "enabled": load_settings().is_server_enabled(source.name, default=True),
+            "enabled": settings.is_server_enabled(source.name, default=True),
             "configured": bool(env_present),
             "missing_env": not env_present,
         }
     result = []
+    provider = proxy_factory or get_proxy
     try:
-        proxy = get_proxy()
-        statuses = proxy.statuses()
-    except Exception:
-        statuses = []
+        statuses = provider().statuses()
+    except Exception as exc:
+        from kater.api.server import _log
+
+        _log.exception("failed to collect backend statuses")
+        return Response.json(
+            503,
+            {
+                "error": "backend_status_unavailable",
+                "message": "Backend status collection failed; check gateway logs and retry.",
+                "detail": str(exc),
+                "backends": [],
+                "servers": [],
+                "totals": totals,
+            },
+        )
     for status in statuses:
         d = status.to_dict()
         extra = per_server.get(d["name"], {})
@@ -561,13 +585,9 @@ def _backends(_: Request) -> Response:
     return Response.json(
         200,
         {
+            "backends": result,
             "servers": result,
-            "totals": {
-                "enabled": overview.get("enabled", 0),
-                "disabled": overview.get("disabled", 0),
-                "configured": overview.get("configured", 0),
-                "missing_env": overview.get("missing_env", 0),
-            },
+            "totals": totals,
         },
     )
 
