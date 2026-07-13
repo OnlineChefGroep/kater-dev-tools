@@ -1221,6 +1221,8 @@ onEl(document, 'DOMContentLoaded', init);
 
 
 def render_dashboard(ws_port: int = 9092) -> str:
+    """Render the self-contained operator dashboard for the configured WS port."""
+
     config = f"<script>window.KATER_CONFIG={{wsPort:{int(ws_port)}}};</script>\n"
     return (
         "<!DOCTYPE html>\n"

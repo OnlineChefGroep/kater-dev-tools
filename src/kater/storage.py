@@ -129,6 +129,8 @@ def _sqlite_query(
     success: bool | None = None,
     newest_first: bool = False,
 ) -> list[dict[str, Any]]:
+    """Query SQLite events with optional filters and bounded output ordering."""
+
     with _storage_lock:
         db = _get_db()
         conditions: list[str] = []
@@ -233,6 +235,8 @@ def _jsonl_query(
     success: bool | None = None,
     newest_first: bool = False,
 ) -> list[dict[str, Any]]:
+    """Query JSONL events with optional filters and bounded in-memory ordering."""
+
     path = _jsonl_path()
     if not path.exists():
         return []
@@ -325,6 +329,8 @@ def query_events(
     success: bool | None = None,
     newest_first: bool = False,
 ) -> list[dict[str, Any]]:
+    """Query telemetry through the configured backend using common semantics."""
+
     if _get_backend() == "sqlite":
         return _sqlite_query(
             limit=limit,

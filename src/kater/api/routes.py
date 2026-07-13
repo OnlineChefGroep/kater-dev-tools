@@ -500,6 +500,8 @@ def _parse_since(req: Request) -> float | None:
 
 @route("GET", "/api/events")
 def _events(req: Request) -> Response:
+    """Return a bounded, newest-first telemetry page matching request filters."""
+
     import kater.storage as storage
 
     try:
@@ -539,6 +541,8 @@ def _backends(
     _: Request,
     proxy_factory: Callable[[], Any] | None = None,
 ) -> Response:
+    """Return backend health while keeping collection failures server-side."""
+
     overview = status_overview().get("servers", {})
     totals = {
         "enabled": overview.get("enabled", 0),
