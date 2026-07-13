@@ -465,7 +465,13 @@ def _deploy_render(req: Request) -> Response:
     known = {entry["name"] for entry in list_deploy_formats()}
     if fmt not in known:
         return Response.json(
-            404, {"error": f"Unknown format '{fmt}'. Available: {', '.join(known)}"}
+            404,
+            {
+                "error": (
+                    f"Unknown format '{fmt}'. "
+                    f"Available: {', '.join(sorted(known))}"
+                )
+            },
         )
     return Response.json(200, render_deploy(fmt, profile=profile))
 
