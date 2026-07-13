@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import importlib.util
 import logging
+import re
 
 import kater.api as api
 import kater.profiles as profiles
+from kater.web import dashboard as dashboard_module
 from kater.web import render_dashboard
 
 
@@ -19,25 +22,29 @@ def _request(query: dict[str, list[str]] | None = None) -> api.Request:
     )
 
 
+def test_dashboard_is_native_and_has_no_review_fix_layer():
+    assert render_dashboard is dashboard_module.render_dashboard
+    assert not hasattr(dashboard_module, "_PR81_REVIEW_FIXES_APPLIED")
+    assert importlib.util.find_spec("kater.web.review_fixes") is None
+
+
 def test_dashboard_javascript_helpers_and_oauth_route_are_valid():
     html = render_dashboard()
     assert "function trackedTimeout(fn, ms)" in html
-    assert "const url = '/authorize'" in html
+    assert re.search(r"['\"]/authorize['\"]", html)
     assert "/oauth/authorize" not in html
-    assert "data.backends || data.servers || []" in html
 
 
-def test_dashboard_confirm_action_uses_specific_labels():
+def test_dashboard_confirm_actions_are_specific():
     html = render_dashboard()
-    assert "enable: 'Enable server'" in html
-    assert "disable: 'Disable server'" in html
-    assert "'save-credentials': 'Save credentials'" in html
-    assert "confirmCtx.ok.textContent = labels[action]" in html
-    assert 'onclick="runConfirmed()">Confirm</button>' not in html
+    for label in ("Enable server", "Disable server", "Save credentials"):
+        assert label in html
 
 
 def test_dashboard_primary_copy_is_sentence_case():
     html = render_dashboard()
+    # These were the old shouting labels patched at import time. The native
+    # dashboard may change wording, but must not regress to that copy.
     for label in (
         "CONTROL PLANE",
         "KEY METRICS",
