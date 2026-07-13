@@ -1042,6 +1042,7 @@ _VIEW_EVALS = r"""
 """
 
 
+
 _VIEW_DEPLOY = r"""
   <div class="view" id="view-deploy">
     <div class="view-header">
@@ -1060,6 +1061,7 @@ _VIEW_DEPLOY = r"""
     </div>
   </div>
 """
+
 
 
 _VIEW_SETTINGS = r"""
@@ -1101,6 +1103,7 @@ _VIEW_SETTINGS = r"""
     </div>
   </div>
 """
+
 
 
 _HTML_SHELL_BOTTOM = r"""
@@ -1210,6 +1213,8 @@ _HTML = (
 )
 
 
+
+
 _JS = r"""
 
 const API = '';
@@ -1242,7 +1247,6 @@ let streamPaused = false;
 let streamErrorsOnly = false;
 let catalogFilter = 'all';
 let catalogItems = [];
-let catalogLoadSeq = 0;
 let lastEventTotal = null;
 let lastLiveMs = 0;
 const HIST = 40;
@@ -1489,14 +1493,8 @@ function clearCatalogSearch() {
   writeUrlState();
   if (currentView === 'catalog') loadCatalogView();
 }
-
-function resetCatalogFilter() {
-  setCatalogFilter('all');
-}
-
-function resetRouteFilter() {
-  setRouteFilter('all');
-}
+function resetCatalogFilter() { setCatalogFilter('all'); }
+function resetRouteFilter() { setRouteFilter('all'); }
 
 function scheduleCatalogReload() {
   if (catalogReloadTimer) return;
@@ -1852,15 +1850,13 @@ function renderServerMap() {
     if (servers.length) {
       empty.textContent = 'No servers match this filter.';
       if (routeFilter !== 'all') {
-        const reset = document.createElement('button');
-        reset.className = 'view-empty-link';
-        reset.textContent = 'Switch filter to all';
-        reset.onclick = resetRouteFilter;
-        empty.appendChild(reset);
+        const btn = document.createElement('button');
+        btn.className = 'view-empty-link';
+        btn.textContent = 'Switch filter to all';
+        btn.onclick = resetRouteFilter;
+        empty.appendChild(btn);
       }
-    } else {
-      empty.textContent = 'No servers in this profile.';
-    }
+    } else { empty.textContent = 'No servers in this profile.'; }
     el.appendChild(empty);
     return;
   }
@@ -2187,9 +2183,6 @@ function initCatalogSearch() {
   if (!input || input.dataset.bound) return;
   input.dataset.bound = '1';
   input.addEventListener('input', () => {
-    // Invalidate any in-flight catalog load now, so a response for the previous
-    // query can't render during the debounce window before the reload below starts.
-    catalogLoadSeq++;
     if (catalogSearchTimer) clearTimeout(catalogSearchTimer);
     catalogSearchTimer = setTimeout(async () => {
       catalogSearchTimer = null;
@@ -2869,9 +2862,7 @@ async function loadCatalogView() {
   if (search && search.value.trim() !== catalogQuery) {
     catalogQuery = search.value.trim();
   }
-  const seq = ++catalogLoadSeq;
   const data = await api(catalogApiPath());
-  if (seq !== catalogLoadSeq) return;  // superseded by a newer search/filter load; ignore stale response
   const grid = document.getElementById('catalog-grid');
   catalogItems = filterServers(data.servers || []);
   const items = catalogFilter === 'all'
@@ -2883,27 +2874,20 @@ async function loadCatalogView() {
     const empty = document.createElement('div');
     empty.className = 'view-empty';
     empty.style.gridColumn = '1 / -1';
-    const addLink = (label, handler) => {
+    if (catalogQuery) {
+      empty.textContent = 'No servers match "' + catalogQuery + '".';
       const btn = document.createElement('button');
       btn.className = 'view-empty-link';
-      btn.textContent = label;
-      btn.onclick = handler;
+      btn.textContent = 'Clear search';
+      btn.onclick = clearCatalogSearch;
       empty.appendChild(btn);
-    };
-    const hasQuery = !!catalogQuery;
-    const hasFilter = catalogFilter !== 'all';
-    if (hasQuery && hasFilter) {
-      // Both constraints are active, so either could be the cause: describe the
-      // combined state and offer both recovery actions rather than only one.
-      empty.textContent = 'No servers match "' + catalogQuery + '" in this status.';
-      addLink('Clear search', clearCatalogSearch);
-      addLink('Switch filter to all', resetCatalogFilter);
-    } else if (hasQuery) {
-      empty.textContent = 'No servers match "' + catalogQuery + '".';
-      addLink('Clear search', clearCatalogSearch);
-    } else if (hasFilter) {
+    } else if (catalogFilter !== 'all') {
       empty.textContent = 'No servers in this status.';
-      addLink('Switch filter to all', resetCatalogFilter);
+      const btn = document.createElement('button');
+      btn.className = 'view-empty-link';
+      btn.textContent = 'Switch filter to all';
+      btn.onclick = resetCatalogFilter;
+      empty.appendChild(btn);
     } else {
       empty.textContent = 'No servers in this profile. Switch profiles in the top bar.';
     }
