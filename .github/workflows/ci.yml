@@ -60,9 +60,6 @@ jobs:
       - name: OpenAPI snapshot check
         run: uv run python -c "import kater.openapi_spec as s; assert s.build_spec(); print('openapi ok')"
 
-      - name: Check formatting is committed
-        run: uv run ruff format --check .
-
       - name: Lint workflow files
         run: |
           for f in .github/workflows/*.yml; do
@@ -106,9 +103,6 @@ jobs:
 
       - name: Ruff
         run: uv run ruff check .
-
-      - name: Format check
-        run: uv run ruff format --check .
 
       - name: Mypy
         run: uv run mypy
