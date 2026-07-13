@@ -58,7 +58,7 @@ jobs:
           PY
 
       - name: OpenAPI snapshot check
-        run: uv run python -c "import kater.openapi_spec as s; assert s.build_spec(); print('openapi ok')"
+        run: uv run python -c "import kater.openapi_spec as s; assert s.generate_spec(); print('openapi ok')"
 
       - name: Lint workflow files
         run: |
