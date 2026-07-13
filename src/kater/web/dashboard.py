@@ -452,11 +452,20 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
 .btn-tunnel.active { border-color: var(--ok); color: var(--ok); background: var(--ok-dim); }
 
 /* ── Catalog ────────────────────────────────────────────────── */
-.catalog-toolbar { padding: 14px 18px 4px; }
+.catalog-toolbar { padding: 14px 18px 4px; display: flex; flex-direction: column; gap: 10px; }
 #catalog-search {
   max-width: 380px;
   background: var(--surface); border: 1px solid var(--border);
 }
+.facet-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.facet {
+  font-family: var(--mono); font-size: 11px;
+  padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-muted); cursor: pointer;
+}
+.facet:hover { color: var(--text); border-color: var(--border-strong); }
+.facet.active { border-color: var(--accent-line); color: var(--accent); background: var(--accent-dim); }
 .server-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -470,6 +479,19 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
 .server-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
 .server-card-name { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); }
 .server-card-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; min-height: 36px; }
+
+.server-card-meta {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-top: 10px; font-family: var(--mono); font-size: 10.5px; color: var(--text-faint);
+}
+.cost-dots { display: inline-flex; gap: 3px; align-items: center; }
+.cost-dots i {
+  display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--border-strong);
+}
+.cost-dots i.on { background: var(--accent); }
+.route-meta { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+.route-cost { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
 
 .toggle-switch {
   width: 36px; height: 20px; border-radius: 999px;
@@ -773,7 +795,7 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
 
 _HTML_SHELL_TOP = r"""
 <div id="boot"></div>
-<a href="#app" class="sr-only skip-link">Skip to content</a>
+<a href="#main-content" class="sr-only skip-link">Skip to content</a>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
@@ -863,16 +885,16 @@ _HTML_SHELL_TOP = r"""
 _VIEW_DASHBOARD = r"""
 <div class="view active" id="view-dashboard">
     <div class="exc-strip" id="exc-strip" role="group" aria-label="Server health summary">
-      <button class="exc-item active interactive" data-filter="all" type="button">
+      <button class="exc-item active interactive" data-filter="all" type="button" aria-pressed="true">
         <span class="dot"></span> all <span class="n" id="exc-all">0</span>
       </button>
-      <button class="exc-item ok interactive" data-filter="ready" type="button">
+      <button class="exc-item ok interactive" data-filter="ready" type="button" aria-pressed="false">
         <span class="dot"></span> ready <span class="n" id="exc-ready">0</span>
       </button>
-      <button class="exc-item warn interactive" data-filter="needs" type="button">
+      <button class="exc-item warn interactive" data-filter="needs" type="button" aria-pressed="false">
         <span class="dot"></span> need credentials <span class="n" id="exc-needs">0</span>
       </button>
-      <button class="exc-item interactive" data-filter="disabled" type="button">
+      <button class="exc-item interactive" data-filter="disabled" type="button" aria-pressed="false">
         <span class="dot"></span> disabled <span class="n" id="exc-disabled">0</span>
       </button>
       <div class="exc-spacer"></div>
@@ -913,11 +935,11 @@ _VIEW_DASHBOARD = r"""
       </div>
       <div class="kpi">
         <div class="kpi-top">
-          <span class="kpi-label">Throughput</span>
+          <span class="kpi-label">Events / poll</span>
           <span class="trend" id="trend-events"></span>
         </div>
-        <div class="kpi-value tnum" id="stat-events">0</div>
-        <div class="kpi-sub"><span id="stat-backends" class="tnum">0</span> tool calls logged</div>
+        <div class="kpi-value tnum" id="stat-events">&mdash;</div>
+        <div class="kpi-sub"><span id="stat-backends" class="tnum">0</span> tool calls · <span id="stat-events-total" class="tnum">0</span> events</div>
         <svg class="kpi-spark" id="spark-events" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true">
           <path class="spark-area" fill="url(#grad-teal)" d=""/>
           <path class="spark-line" stroke="#2dd4bf" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" d=""/>
@@ -938,8 +960,9 @@ _VIEW_DASHBOARD = r"""
         <div class="panel-head">
           <span class="panel-title">Activity</span>
           <div class="panel-actions">
-            <button class="mini-btn interactive" id="btn-errors-only" type="button" onclick="toggleErrorsOnly()">errors</button>
-            <button class="mini-btn interactive" id="btn-pause" type="button" onclick="toggleStreamPause()">pause</button>
+            <button class="mini-btn interactive" id="btn-errors-only" type="button" onclick="toggleErrorsOnly()" aria-pressed="false">errors</button>
+            <button class="mini-btn interactive" id="btn-pause" type="button" onclick="toggleStreamPause()" aria-pressed="false">pause</button>
+            <button class="mini-btn interactive" id="btn-clear-stream" type="button" onclick="clearTelemetryStream()">clear</button>
           </div>
         </div>
         <div class="latency-wrap">
@@ -977,6 +1000,12 @@ _VIEW_CATALOG = r"""
         <input class="form-input" id="catalog-search" type="search"
           placeholder="Search servers..." autocomplete="off"
           aria-label="Search servers">
+        <div class="facet-row" id="catalog-facets" role="group" aria-label="Filter by status">
+          <button class="facet active interactive" type="button" data-cfilter="all" aria-pressed="true">All</button>
+          <button class="facet interactive" type="button" data-cfilter="ready" aria-pressed="false">Ready</button>
+          <button class="facet interactive" type="button" data-cfilter="needs" aria-pressed="false">Needs credentials</button>
+          <button class="facet interactive" type="button" data-cfilter="disabled" aria-pressed="false">Disabled</button>
+        </div>
       </div>
       <div class="server-grid" id="catalog-grid">
         <div class="view-empty">Loading catalog...</div>
@@ -1206,12 +1235,17 @@ let routeSel = -1;
 let routeRows = [];
 let streamPaused = false;
 let streamErrorsOnly = false;
+let catalogFilter = 'all';
+let catalogItems = [];
 let lastEventTotal = null;
 let lastLiveMs = 0;
 const HIST = 40;
 const histSuccess = [];
 const histEvents = [];
 const histLatency = [];
+const recentActivity = new Map(); // serverName -> last call ms age marker
+const IS_APPLE = /Mac|iPhone|iPad|iPod/.test(navigator.platform || '');
+const MOD_KEY = IS_APPLE ? '\u2318' : 'Ctrl';
 
 // ── Helpers ────────────────────────────
 class ApiError extends Error {
@@ -1526,29 +1560,100 @@ async function init() {
     toast((e instanceof ApiError ? e.message : 'Login failed'), 'error');
   }
   try { await bootSequence(); } catch (e) {
-    if (e instanceof ApiError && e.status === 401) {
-      showAuthGate();
-      return;
-    }
     console.error('boot failed:', e);
   }
+  applyModKeyHints();
+  restoreUrlState();
   // Server map MUST exist before loadCatalog() calls buildNodes().
   initCanvas();
   initExceptionStrip();
+  initCatalogFacets();
   initLatencyStrip();
   initPalette();
-  try { await loadProfiles(); } catch (e) { console.error('profiles:', e); }
-  try { await loadCatalog(); } catch (e) { console.error('catalog:', e); }
-  try { await loadStatus(); } catch (e) { console.error('status:', e); }
+  try {
+    await loadProfiles();
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) { showAuthGate(); return; }
+    console.error('profiles:', e);
+  }
+  try {
+    await loadCatalog();
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) { showAuthGate(); return; }
+    console.error('catalog:', e);
+  }
+  try {
+    await loadStatus();
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) { showAuthGate(); return; }
+    console.error('status:', e);
+  }
   try { await loadTunnelStatus(); } catch (e) { console.error('tunnel:', e); }
   initDelegation();
   initCommandBar();
   initCatalogSearch();
   initKeyboard();
   initWebSocket();
+  window.addEventListener('popstate', onPopState);
 
   setInterval(loadStatusSafe, 5000);
   appReady = true;
+  // Apply restored view after data is loaded.
+  if (currentView && currentView !== 'dashboard') switchView(currentView);
+  else writeUrlState(true);
+}
+
+function applyModKeyHints() {
+  document.querySelectorAll('.foot-hint, .palette-trigger').forEach(el => {
+    el.innerHTML = el.innerHTML.replace(/\u2318/g, MOD_KEY).replace(/Ctrl/g, MOD_KEY);
+  });
+}
+
+function restoreUrlState() {
+  const p = new URLSearchParams(location.search);
+  const view = p.get('view');
+  if (view && ['dashboard','catalog','evals','deploy','settings'].indexOf(view) !== -1) {
+    currentView = view;
+  }
+  const profile = p.get('profile');
+  if (profile) activeProfile = profile;
+  const q = p.get('q');
+  if (q) {
+    catalogQuery = q;
+    const input = document.getElementById('catalog-search');
+    if (input) input.value = q;
+  }
+  const rf = p.get('filter');
+  if (rf && ['all','ready','needs','disabled'].indexOf(rf) !== -1) routeFilter = rf;
+  const cf = p.get('cfilter');
+  if (cf && ['all','ready','needs','disabled'].indexOf(cf) !== -1) catalogFilter = cf;
+}
+
+function writeUrlState(replace) {
+  const p = new URLSearchParams();
+  if (currentView && currentView !== 'dashboard') p.set('view', currentView);
+  if (activeProfile && activeProfile !== 'core') p.set('profile', activeProfile);
+  if (catalogQuery) p.set('q', catalogQuery);
+  if (routeFilter && routeFilter !== 'all') p.set('filter', routeFilter);
+  if (catalogFilter && catalogFilter !== 'all') p.set('cfilter', catalogFilter);
+  if (selectedNode && selectedNode.name) p.set('server', selectedNode.name);
+  const qs = p.toString();
+  const url = location.pathname + (qs ? '?' + qs : '');
+  if (replace) history.replaceState({}, '', url);
+  else if (url !== location.pathname + location.search) history.pushState({}, '', url);
+}
+
+function onPopState() {
+  restoreUrlState();
+  document.querySelectorAll('.pill').forEach(el => {
+    el.classList.toggle('active', el.dataset.profile === activeProfile);
+  });
+  setRouteFilter(routeFilter, true);
+  setCatalogFilter(catalogFilter, true);
+  switchView(currentView, true);
+  const server = new URLSearchParams(location.search).get('server');
+  if (server) openServerDetail(server);
+  else closeDetail();
 }
 
 async function loadStatusSafe() {
@@ -1577,6 +1682,7 @@ function switchProfile(p) {
   document.querySelectorAll('.pill').forEach(el => {
     el.classList.toggle('active', el.dataset.profile === p);
   });
+  writeUrlState();
   loadCatalog();
   if (currentView === 'catalog') loadCatalogView();
   toast('profile: ' + p);
@@ -1602,26 +1708,39 @@ async function loadStatus() {
   document.getElementById('stat-tools').textContent = total;
   document.getElementById('stat-enabled').textContent = enabled;
   const successEl = document.getElementById('stat-success');
-  successEl.textContent = success + '%';
-  successEl.className = 'kpi-value tnum' + (success >= 90 ? '' : success >= 50 ? ' warn' : ' err');
+  // Don't show a scary red 0% when no calls have been made yet.
+  if (!calls) {
+    successEl.textContent = '\u2014';
+    successEl.className = 'kpi-value tnum';
+  } else {
+    successEl.textContent = success + '%';
+    successEl.className = 'kpi-value tnum' + (success >= 90 ? '' : success >= 50 ? ' warn' : ' err');
+  }
   document.getElementById('stat-backends').textContent = calls;
-  document.getElementById('stat-events').textContent = events;
+  const totalEl = document.getElementById('stat-events-total');
+  if (totalEl) totalEl.textContent = events;
   document.getElementById('auth-dot').style.background =
     data.auth_mode === 'none' ? 'var(--ok)' : 'var(--info)';
 
-  // Success rate trend + sparkline.
-  const prevSuccess = histSuccess.length ? histSuccess[histSuccess.length - 1] : null;
-  pushHist(histSuccess, success);
-  updateSpark('spark-success', histSuccess);
-  updateTrend('trend-success', success, prevSuccess, { unit: '%', pct: true, eps: 0.4 });
+  // Success rate trend + sparkline (only after we have real call volume).
+  if (calls) {
+    const prevSuccess = histSuccess.length ? histSuccess[histSuccess.length - 1] : null;
+    pushHist(histSuccess, success);
+    updateSpark('spark-success', histSuccess);
+    updateTrend('trend-success', success, prevSuccess, { unit: '%', pct: true, eps: 0.4 });
+  }
 
-  // Throughput: events per poll interval (delta), trend + sparkline.
+  // Events/poll: delta since last poll — matches the sparkline and trend.
+  const eventsEl = document.getElementById('stat-events');
   if (lastEventTotal != null) {
     const delta = Math.max(0, events - lastEventTotal);
     const prevDelta = histEvents.length ? histEvents[histEvents.length - 1] : null;
     pushHist(histEvents, delta);
     updateSpark('spark-events', histEvents);
     updateTrend('trend-events', delta, prevDelta, { eps: 0.9 });
+    if (eventsEl) eventsEl.textContent = delta;
+  } else if (eventsEl) {
+    eventsEl.textContent = '\u2014';
   }
   lastEventTotal = events;
 }
@@ -1638,13 +1757,16 @@ function initExceptionStrip() {
   });
 }
 
-function setRouteFilter(filter) {
+function setRouteFilter(filter, quiet) {
   routeFilter = filter;
   document.querySelectorAll('#exc-strip .exc-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.filter === filter);
+    const on = el.dataset.filter === filter;
+    el.classList.toggle('active', on);
+    el.setAttribute('aria-pressed', String(on));
   });
   routeSel = -1;
   renderServerMap();
+  if (!quiet) writeUrlState();
 }
 
 function serverState(s) {
@@ -1674,6 +1796,21 @@ function initCanvas() {
   if (!el || el.dataset.bound) return;
   el.dataset.bound = '1';
   el.addEventListener('click', onServerMapClick);
+  el.addEventListener('focusin', (e) => {
+    const row = e.target.closest('tr[data-name]');
+    if (!row) return;
+    const idx = routeRows.indexOf(row);
+    if (idx >= 0) { routeSel = idx; highlightRouteRow(); }
+  });
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const row = e.target.closest('tr[data-name]');
+      if (!row) return;
+      e.preventDefault();
+      routeSel = routeRows.indexOf(row);
+      openSelectedRoute();
+    }
+  });
 }
 
 function visibleRouteServers() {
@@ -1700,7 +1837,7 @@ function renderServerMap() {
   table.className = 'route-table';
   const thead = document.createElement('thead');
   const hr = document.createElement('tr');
-  for (const h of ['Server', 'Transport', 'Status']) {
+  for (const h of ['Server', 'Transport', 'Risk', 'Cost', 'Status']) {
     const th = document.createElement('th');
     th.textContent = h;
     hr.appendChild(th);
@@ -1718,6 +1855,13 @@ function renderServerMap() {
     name.textContent = s.name;
     const transport = document.createElement('td');
     transport.appendChild(makeBadge(s.transport, s.transport));
+    const risk = document.createElement('td');
+    risk.appendChild(makeBadge(s.risk || 'low', s.risk || 'low'));
+    const cost = document.createElement('td');
+    cost.className = 'route-cost';
+    const c = Math.max(0, Math.min(5, Number(s.context_cost) || 0));
+    cost.textContent = c ? ('\u25CF'.repeat(c) + '\u25CB'.repeat(Math.max(0, 5 - c))) : '\u2014';
+    cost.title = c ? ('context cost ' + c + '/5') : 'no cost data';
     const status = document.createElement('td');
     const chip = document.createElement('span');
     chip.className = 'status-chip';
@@ -1734,6 +1878,8 @@ function renderServerMap() {
     status.appendChild(chip);
     tr.appendChild(name);
     tr.appendChild(transport);
+    tr.appendChild(risk);
+    tr.appendChild(cost);
     tr.appendChild(status);
     tbody.appendChild(tr);
     routeRows.push(tr);
@@ -1747,6 +1893,7 @@ function highlightRouteRow() {
   routeRows.forEach((tr, i) => tr.classList.toggle('sel', i === routeSel));
   if (routeSel >= 0 && routeRows[routeSel]) {
     routeRows[routeSel].scrollIntoView({ block: 'nearest' });
+    try { routeRows[routeSel].focus({ preventScroll: true }); } catch (e) {}
   }
 }
 
@@ -1884,11 +2031,13 @@ function openDetail(node) {
   disableBtn.style.opacity = node.enabled ? '1' : '0.4';
 
   document.getElementById('detail-panel').classList.add('open');
+  writeUrlState();
 }
 
 function closeDetail() {
   document.getElementById('detail-panel').classList.remove('open');
   selectedNode = null;
+  writeUrlState();
 }
 
 // ── Credentials modal ──────────────────
@@ -1991,6 +2140,7 @@ async function detailToggle(enable) {
     toast(enableHint(name, enable), enable ? 'success' : '');
   } catch (e) {
     toast(name + ': ' + (e.message || 'failed'), 'error');
+    return;
   }
   // Reload, then re-resolve selectedNode from the FRESH server list so we
   // don't keep rendering a stale, optimistically-mutated object.
@@ -2010,12 +2160,37 @@ function initCatalogSearch() {
     catalogSearchTimer = setTimeout(async () => {
       catalogSearchTimer = null;
       catalogQuery = input.value.trim();
+      writeUrlState();
       try {
-        await loadCatalog();
+        // Only refresh the catalog view — don't refilter the Overview
+        // routing table with the search query.
         if (currentView === 'catalog') await loadCatalogView();
       } catch (e) { /* ignore search errors while typing */ }
     }, 200);
   });
+}
+
+function initCatalogFacets() {
+  const row = document.getElementById('catalog-facets');
+  if (!row || row.dataset.bound) return;
+  row.dataset.bound = '1';
+  row.addEventListener('click', (e) => {
+    const btn = e.target.closest('.facet');
+    if (!btn) return;
+    setCatalogFilter(btn.dataset.cfilter || 'all');
+  });
+  setCatalogFilter(catalogFilter, true);
+}
+
+function setCatalogFilter(filter, quiet) {
+  catalogFilter = filter || 'all';
+  document.querySelectorAll('#catalog-facets .facet').forEach(el => {
+    const on = el.dataset.cfilter === catalogFilter;
+    el.classList.toggle('active', on);
+    el.setAttribute('aria-pressed', String(on));
+  });
+  if (currentView === 'catalog') loadCatalogView();
+  if (!quiet) writeUrlState();
 }
 
 // ── Event delegation (catalog cards, deploy tabs, profile pills) ──
@@ -2038,6 +2213,12 @@ function initDelegation() {
         e.preventDefault();
         e.stopPropagation();
         toggleServerCard(toggle.dataset.name, toggle);
+        return;
+      }
+      const card = e.target.closest('.server-card');
+      if (card && card.dataset.name && e.target === card) {
+        e.preventDefault();
+        openServerDetail(card.dataset.name);
       }
     }
   });
@@ -2354,16 +2535,28 @@ function appendTelemetry(event) {
     }
   }
   const ms = Math.round(event.duration_ms || 0);
-  // Feed the canvas ring even while paused, so the latency picture stays live.
-  latencyRing[latIdx] = ms;
-  latIdx = (latIdx + 1) % latencyRing.length;
-  latLen = Math.min(latLen + 1, latencyRing.length);
-  lastLiveMs = ms;
+  const isToolCall = event.type === 'tool_call' || (event.type === 'telemetry' && event.duration_ms != null);
+  // Only feed real tool-call latencies into the oscilloscope / KPI — chain_run
+  // events often arrive with 0ms and would flatten the chart.
+  if (isToolCall && ms > 0) {
+    latencyRing[latIdx] = ms;
+    latIdx = (latIdx + 1) % latencyRing.length;
+    latLen = Math.min(latLen + 1, latencyRing.length);
+    lastLiveMs = ms;
+  }
+  // Infer server name from tool prefix (e.g. github.search -> github).
+  const toolName = event.name || '';
+  const serverGuess = toolName.includes('.') || toolName.includes('__')
+    ? toolName.split(/[.__]/)[0]
+    : '';
+  if (serverGuess) recentActivity.set(serverGuess, nowMs);
 
   streamBuf.push({
-    name: event.name || event.type || '',
+    name: toolName || event.type || '',
     ok: event.success !== false,
     ms: ms,
+    ts: Number(stamp) * (Number(stamp) > 1e12 ? 1 : 1000), // accept s or ms
+    kind: event.type || 'tool_call',
   });
   if (streamBuf.length > 120) streamBuf.splice(0, streamBuf.length - 120);
   if (!streamRaf) streamRaf = requestAnimationFrame(flushStream);
@@ -2413,6 +2606,7 @@ function flushStream() {
     }
     if (frag.childNodes.length) stream.insertBefore(frag, stream.firstChild);
     while (stream.children.length > 80) stream.lastChild.remove();
+    ensureStreamEmptyHint();
   }
 }
 
@@ -2422,8 +2616,8 @@ function makeTlmRow(ev) {
   row.dataset.name = ev.name;
   row.dataset.ok = String(ev.ok);
   row.dataset.count = '1';
-  const now = new Date();
-  const ts = pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds());
+  const when = new Date(ev.ts || Date.now());
+  const ts = pad2(when.getHours()) + ':' + pad2(when.getMinutes()) + ':' + pad2(when.getSeconds());
 
   const t = document.createElement('span'); t.className = 'tlm-time'; t.textContent = ts;
   const ic = document.createElement('span');
@@ -2436,7 +2630,7 @@ function makeTlmRow(ev) {
   cnt.className = 'tlm-count';
   const ms = document.createElement('span');
   ms.className = 'tlm-ms lat-pill ' + latencyClass(ev.ms);
-  ms.textContent = ev.ms + 'ms';
+  ms.textContent = (ev.ms > 0 ? ev.ms + 'ms' : ev.kind || '');
 
   row.appendChild(t); row.appendChild(ic); row.appendChild(nm);
   row.appendChild(cnt); row.appendChild(ms);
@@ -2495,6 +2689,7 @@ function toggleStreamPause() {
   streamPaused = !streamPaused;
   const btn = document.getElementById('btn-pause');
   btn.classList.toggle('active', streamPaused);
+  btn.setAttribute('aria-pressed', String(streamPaused));
   btn.textContent = streamPaused ? 'paused' : 'pause';
 }
 
@@ -2502,7 +2697,39 @@ function toggleErrorsOnly() {
   streamErrorsOnly = !streamErrorsOnly;
   const btn = document.getElementById('btn-errors-only');
   btn.classList.toggle('active', streamErrorsOnly);
-  document.getElementById('telemetry-stream').classList.toggle('errors-only', streamErrorsOnly);
+  btn.setAttribute('aria-pressed', String(streamErrorsOnly));
+  const stream = document.getElementById('telemetry-stream');
+  stream.classList.toggle('errors-only', streamErrorsOnly);
+  ensureStreamEmptyHint();
+}
+
+function clearTelemetryStream() {
+  const stream = document.getElementById('telemetry-stream');
+  stream.innerHTML = '';
+  ensureStreamEmptyHint();
+}
+
+function ensureStreamEmptyHint() {
+  const stream = document.getElementById('telemetry-stream');
+  if (!stream) return;
+  const visible = Array.from(stream.children).filter(el => {
+    if (el.classList.contains('tlm-empty')) return false;
+    if (streamErrorsOnly && !el.classList.contains('is-err')) return false;
+    return true;
+  });
+  let hint = stream.querySelector('.tlm-empty');
+  if (visible.length) {
+    if (hint) hint.remove();
+    return;
+  }
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.className = 'tlm-empty';
+    stream.appendChild(hint);
+  }
+  hint.textContent = streamErrorsOnly
+    ? 'No errors in the current stream.'
+    : (streamPaused ? 'Stream paused.' : 'Waiting for tool calls\u2026');
 }
 
 // ── Tunnels ────────────────────────────
@@ -2514,7 +2741,7 @@ function setTunnelButton(provider, running) {
   const btn = tunnelBtn(provider);
   if (!btn) return;
   btn.classList.toggle('active', !!running);
-  btn.textContent = running ? 'ON' : 'START';
+  btn.textContent = running ? 'ON' : 'Start';
   btn.disabled = false;
 }
 
@@ -2574,7 +2801,7 @@ const viewTitles = {
   settings: 'Settings',
 };
 
-function switchView(name) {
+function switchView(name, quiet) {
   currentView = name;
   const title = document.getElementById('page-title');
   if (title) title.textContent = viewTitles[name] || name;
@@ -2582,10 +2809,14 @@ function switchView(name) {
     v.classList.toggle('active', v.id === 'view-' + name);
   });
   document.querySelectorAll('.sidebar-nav .tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.view === name);
+    const on = t.dataset.view === name;
+    t.classList.toggle('active', on);
+    if (on) t.setAttribute('aria-current', 'page');
+    else t.removeAttribute('aria-current');
   });
   if (name === 'dashboard') setTimeout(drawLatencyStrip, 0);
   loadViewData(name);
+  if (!quiet) writeUrlState();
 }
 
 async function loadViewData(name) {
@@ -2606,16 +2837,23 @@ async function loadCatalogView() {
   }
   const data = await api(catalogApiPath());
   const grid = document.getElementById('catalog-grid');
-  const items = filterServers(data.servers || []);
+  catalogItems = filterServers(data.servers || []);
+  const items = catalogFilter === 'all'
+    ? catalogItems
+    : catalogItems.filter(s => serverState(s) === catalogFilter);
   document.getElementById('catalog-count').textContent = items.length + ' servers';
   grid.innerHTML = '';
   if (!items.length) {
     const empty = document.createElement('div');
     empty.className = 'view-empty';
     empty.style.gridColumn = '1 / -1';
-    empty.textContent = catalogQuery
-      ? 'No servers match "' + catalogQuery + '". Clear the search to see all.'
-      : 'No servers in this profile. Switch profiles in the top bar.';
+    if (catalogQuery) {
+      empty.textContent = 'No servers match "' + catalogQuery + '". Clear the search to see all.';
+    } else if (catalogFilter !== 'all') {
+      empty.textContent = 'No servers in this status. Switch the filter above.';
+    } else {
+      empty.textContent = 'No servers in this profile. Switch profiles in the top bar.';
+    }
     grid.appendChild(empty);
     return;
   }
@@ -2623,6 +2861,9 @@ async function loadCatalogView() {
     const card = document.createElement('div');
     card.className = 'server-card interactive';
     card.dataset.name = s.name;
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', s.name + ', ' + serverState(s));
 
     const head = document.createElement('div');
     head.className = 'server-card-head';
@@ -2635,6 +2876,7 @@ async function loadCatalogView() {
       + (s.enabled ? (pending ? ' pending' : ' on') : '');
     toggle.setAttribute('role', 'switch');
     toggle.setAttribute('aria-checked', String(!!s.enabled));
+    toggle.setAttribute('aria-label', 'Enable ' + s.name);
     toggle.setAttribute('tabindex', '0');
     toggle.title = pending ? 'On, but needs credentials to connect' : '';
     toggle.dataset.name = s.name;
@@ -2646,9 +2888,10 @@ async function loadCatalogView() {
     badges.className = 'badges';
     badges.appendChild(makeBadge(s.transport, s.transport));
     badges.appendChild(makeBadge(s.risk, s.risk));
+    const st = serverState(s);
     badges.appendChild(makeBadge(
-      s.env_configured ? 'low' : 'high',
-      s.env_configured ? 'configured' : 'missing env'
+      st === 'ready' ? 'low' : (st === 'needs' ? 'medium' : 'high'),
+      st === 'ready' ? 'ready' : (st === 'needs' ? 'needs credentials' : 'disabled')
     ));
     card.appendChild(badges);
 
@@ -2656,6 +2899,29 @@ async function loadCatalogView() {
     desc.className = 'server-card-desc';
     desc.textContent = s.description || '';
     card.appendChild(desc);
+
+    const meta = document.createElement('div');
+    meta.className = 'server-card-meta';
+    const cost = document.createElement('span');
+    cost.className = 'cost-dots';
+    cost.title = 'context cost';
+    const c = Math.max(0, Math.min(5, Number(s.context_cost) || 0));
+    for (let i = 0; i < 5; i++) {
+      const d = document.createElement('i');
+      if (i < c) d.className = 'on';
+      cost.appendChild(d);
+    }
+    const stChip = document.createElement('span');
+    stChip.className = 'status-chip';
+    const dot = document.createElement('span');
+    dot.className = 'status-dot ' + (st === 'ready' ? 'ok' : st === 'needs' ? 'warn' : 'off');
+    const lbl = document.createElement('span');
+    lbl.className = 'status-label';
+    lbl.textContent = st === 'ready' ? 'Ready' : st === 'needs' ? 'Needs credentials' : 'Disabled';
+    stChip.appendChild(dot); stChip.appendChild(lbl);
+    meta.appendChild(cost);
+    meta.appendChild(stChip);
+    card.appendChild(meta);
 
     grid.appendChild(card);
   }
@@ -2677,13 +2943,19 @@ async function toggleServerCard(name, el) {
     const data = await apiPost(
       '/api/mcp/servers/' + encodeURIComponent(name) + '/toggle', {}
     );
+    // Keep the in-memory catalog in sync even if WS is down.
     const s = servers.find(x => x.name === name);
+    if (s) s.enabled = !!data.enabled;
+    const ci = catalogItems.find(x => x.name === name);
+    if (ci) ci.enabled = !!data.enabled;
     const pending = data.enabled && s && s.env_configured === false;
     el.classList.remove('on', 'pending');
     if (data.enabled) el.classList.add(pending ? 'pending' : 'on');
     el.setAttribute('aria-checked', String(!!data.enabled));
     el.title = pending ? 'On, but needs credentials to connect' : '';
     toast(enableHint(name, !!data.enabled), data.enabled ? 'success' : '');
+    buildNodes();
+    if (currentView === 'catalog') await loadCatalogView();
     // Enabling something that still needs a token? Bring up the connect popup.
     if (pending) promptCredentials(name);
   } catch (e) {

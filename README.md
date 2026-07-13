@@ -148,7 +148,8 @@ dependency-free document (inline HTML/CSS/JS) with a dark, ops-focused design:
 
 Keyboard: `1-5` switch views, `⌘/Ctrl+K` opens the command palette, `j/k` move
 through the routing table and `Enter` opens detail, `/` focuses search, `r`
-refreshes the current view.
+refreshes the current view. View, profile, search and filters sync into the
+URL so investigations are shareable.
 
 ## REST API
 

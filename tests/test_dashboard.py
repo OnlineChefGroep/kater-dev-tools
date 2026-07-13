@@ -56,6 +56,15 @@ def test_command_palette_is_present():
     assert 'id="palette-results"' in html
 
 
+def test_catalog_has_status_facets():
+    html = render_dashboard()
+    assert 'id="catalog-facets"' in html
+    assert 'data-cfilter="needs"' in html
+    assert "clearTelemetryStream" in html  # activity clear control
+    assert "writeUrlState" in html  # shareable URL state
+    assert "context_cost" in html  # routing table uses catalog cost
+
+
 def test_each_view_is_present_via_its_own_seam():
     # The per-view constants must each own exactly their view and compose
     # into the single _HTML body (deletion test: drop one -> a view vanishes).
