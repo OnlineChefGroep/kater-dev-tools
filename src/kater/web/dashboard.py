@@ -1852,6 +1852,7 @@ function renderServerMap() {
       empty.textContent = 'No servers match this filter.';
       if (routeFilter !== 'all') {
         const btn = document.createElement('button');
+        btn.type = 'button';
         btn.className = 'view-empty-link';
         btn.textContent = 'Switch filter to all';
         btn.onclick = resetRouteFilter;
@@ -2882,6 +2883,7 @@ async function loadCatalogView() {
     empty.style.gridColumn = '1 / -1';
     const addLink = (label, handler) => {
       const btn = document.createElement('button');
+      btn.type = 'button';
       btn.className = 'view-empty-link';
       btn.textContent = label;
       btn.onclick = handler;
