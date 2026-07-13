@@ -121,7 +121,7 @@ def test_backends_accepts_injected_proxy_and_returns_compatible_shape(monkeypatc
 def test_backends_failure_is_observable(monkeypatch, caplog):
     import kater.telemetry as telemetry
 
-    secret = "postgres://admin:password@internal.example/db"
+    secret = "sensitive internal provider response: tenant=private-example"
 
     class FailingProxy:
         def statuses(self):
