@@ -1247,6 +1247,7 @@ let streamPaused = false;
 let streamErrorsOnly = false;
 let catalogFilter = 'all';
 let catalogItems = [];
+let catalogLoadSeq = 0;
 let lastEventTotal = null;
 let lastLiveMs = 0;
 const HIST = 40;
@@ -2183,6 +2184,9 @@ function initCatalogSearch() {
   if (!input || input.dataset.bound) return;
   input.dataset.bound = '1';
   input.addEventListener('input', () => {
+    // Invalidate any in-flight catalog load now, so a response for the previous
+    // query can't render during the debounce window before the reload below starts.
+    catalogLoadSeq++;
     if (catalogSearchTimer) clearTimeout(catalogSearchTimer);
     catalogSearchTimer = setTimeout(async () => {
       catalogSearchTimer = null;
@@ -2862,7 +2866,9 @@ async function loadCatalogView() {
   if (search && search.value.trim() !== catalogQuery) {
     catalogQuery = search.value.trim();
   }
+  const seq = ++catalogLoadSeq;
   const data = await api(catalogApiPath());
+  if (seq !== catalogLoadSeq) return;  // superseded by a newer search/filter load; ignore stale response
   const grid = document.getElementById('catalog-grid');
   catalogItems = filterServers(data.servers || []);
   const items = catalogFilter === 'all'
@@ -2874,20 +2880,27 @@ async function loadCatalogView() {
     const empty = document.createElement('div');
     empty.className = 'view-empty';
     empty.style.gridColumn = '1 / -1';
-    if (catalogQuery) {
+    const addLink = (label, handler) => {
+      const btn = document.createElement('button');
+      btn.className = 'view-empty-link';
+      btn.textContent = label;
+      btn.onclick = handler;
+      empty.appendChild(btn);
+    };
+    const hasQuery = !!catalogQuery;
+    const hasFilter = catalogFilter !== 'all';
+    if (hasQuery && hasFilter) {
+      // Both constraints are active, so either could be the cause: describe the
+      // combined state and offer both recovery actions rather than only one.
+      empty.textContent = 'No servers match "' + catalogQuery + '" in this status.';
+      addLink('Clear search', clearCatalogSearch);
+      addLink('Switch filter to all', resetCatalogFilter);
+    } else if (hasQuery) {
       empty.textContent = 'No servers match "' + catalogQuery + '".';
-      const btn = document.createElement('button');
-      btn.className = 'view-empty-link';
-      btn.textContent = 'Clear search';
-      btn.onclick = clearCatalogSearch;
-      empty.appendChild(btn);
-    } else if (catalogFilter !== 'all') {
+      addLink('Clear search', clearCatalogSearch);
+    } else if (hasFilter) {
       empty.textContent = 'No servers in this status.';
-      const btn = document.createElement('button');
-      btn.className = 'view-empty-link';
-      btn.textContent = 'Switch filter to all';
-      btn.onclick = resetCatalogFilter;
-      empty.appendChild(btn);
+      addLink('Switch filter to all', resetCatalogFilter);
     } else {
       empty.textContent = 'No servers in this profile. Switch profiles in the top bar.';
     }
