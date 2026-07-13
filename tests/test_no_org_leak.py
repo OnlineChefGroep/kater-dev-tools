@@ -25,7 +25,10 @@ def test_scan_flags_leaks(tmp_path):
         targets.append(str(p))
     errors = nol.scan(targets)
     assert len(errors) == len(LEAK_SAMPLES)
-    assert all("leak" in e or "connection" in e for e in errors)
+    assert {error.split(":", 1)[0] for error in errors} == set(targets)
+    assert any("production domain" in error for error in errors)
+    assert any("attribution allowlist" in error for error in errors)
+    assert any("connection string" in error for error in errors)
 
 
 def test_scan_allows_attribution_and_clean(tmp_path):
