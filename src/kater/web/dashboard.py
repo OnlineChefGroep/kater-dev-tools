@@ -250,6 +250,11 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
   padding: 40px 18px; text-align: center;
   font-family: var(--mono); font-size: 12px; color: var(--text-muted);
 }
+.view-empty-link {
+  color: var(--accent); text-decoration: underline; cursor: pointer;
+  background: none; border: none; font: inherit; padding: 0; margin-left: 4px;
+}
+.view-empty-link:hover { color: var(--text); }
 
 /* ── Overview ───────────────────────────────────────────────── */
 #view-dashboard { padding: 14px 18px 0; gap: 14px; }
@@ -1037,7 +1042,6 @@ _VIEW_EVALS = r"""
 """
 
 
-
 _VIEW_DEPLOY = r"""
   <div class="view" id="view-deploy">
     <div class="view-header">
@@ -1056,7 +1060,6 @@ _VIEW_DEPLOY = r"""
     </div>
   </div>
 """
-
 
 
 _VIEW_SETTINGS = r"""
@@ -1098,7 +1101,6 @@ _VIEW_SETTINGS = r"""
     </div>
   </div>
 """
-
 
 
 _HTML_SHELL_BOTTOM = r"""
@@ -1206,8 +1208,6 @@ _HTML = (
     + _VIEW_SETTINGS
     + _HTML_SHELL_BOTTOM
 )
-
-
 
 
 _JS = r"""
@@ -1479,6 +1479,22 @@ function catalogApiPath() {
   if (activeProfile && activeProfile !== 'core') params.set('profile', activeProfile);
   const q = params.toString();
   return '/api/catalog' + (q ? '?' + q : '');
+}
+
+function clearCatalogSearch() {
+  const input = document.getElementById('catalog-search');
+  if (input) input.value = '';
+  catalogQuery = '';
+  writeUrlState();
+  if (currentView === 'catalog') loadCatalogView();
+}
+
+function resetCatalogFilter() {
+  setCatalogFilter('all');
+}
+
+function resetRouteFilter() {
+  setRouteFilter('all');
 }
 
 function scheduleCatalogReload() {
@@ -1832,9 +1848,18 @@ function renderServerMap() {
   if (!list.length) {
     const empty = document.createElement('div');
     empty.className = 'view-empty';
-    empty.textContent = servers.length
-      ? 'No servers match this filter.'
-      : 'No servers in this profile.';
+    if (servers.length) {
+      empty.textContent = 'No servers match this filter.';
+      if (routeFilter !== 'all') {
+        const reset = document.createElement('button');
+        reset.className = 'view-empty-link';
+        reset.textContent = 'Switch filter to all';
+        reset.onclick = resetRouteFilter;
+        empty.appendChild(reset);
+      }
+    } else {
+      empty.textContent = 'No servers in this profile.';
+    }
     el.appendChild(empty);
     return;
   }
@@ -2853,9 +2878,19 @@ async function loadCatalogView() {
     empty.className = 'view-empty';
     empty.style.gridColumn = '1 / -1';
     if (catalogQuery) {
-      empty.textContent = 'No servers match "' + catalogQuery + '". Clear the search to see all.';
+      empty.textContent = 'No servers match "' + catalogQuery + '".';
+      const clear = document.createElement('button');
+      clear.className = 'view-empty-link';
+      clear.textContent = 'Clear search';
+      clear.onclick = clearCatalogSearch;
+      empty.appendChild(clear);
     } else if (catalogFilter !== 'all') {
-      empty.textContent = 'No servers in this status. Switch the filter above.';
+      empty.textContent = 'No servers in this status.';
+      const reset = document.createElement('button');
+      reset.className = 'view-empty-link';
+      reset.textContent = 'Switch filter to all';
+      reset.onclick = resetCatalogFilter;
+      empty.appendChild(reset);
     } else {
       empty.textContent = 'No servers in this profile. Switch profiles in the top bar.';
     }
