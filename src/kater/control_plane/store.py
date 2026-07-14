@@ -116,6 +116,8 @@ def _dt(value: float | None) -> datetime | None:
 def upsert_route_candidate(capability: str, account: ProviderAccount) -> None:
     if not capability:
         raise ValueError("capability is required")
+    if "__" in capability:
+        raise ValueError("logical capability cannot contain '__'")
     now = time.time()
     with _lock, _connect() as db:
         db.execute(
