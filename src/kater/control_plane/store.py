@@ -93,7 +93,10 @@ _lock = threading.RLock()
 
 def _db_path() -> Path:
     configured = Path(load_settings().db_path).expanduser()
-    return configured if configured.is_absolute() else Path.cwd() / configured
+    resolved = (configured if configured.is_absolute() else Path.cwd() / configured).resolve()
+    if ".kater" not in resolved.parent.parts:
+        raise ValueError("control-plane database must be stored under a .kater directory")
+    return resolved
 
 
 def _connect() -> sqlite3.Connection:
