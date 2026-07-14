@@ -11,7 +11,6 @@ import pytest
 from kater.api import create_api_server
 
 PORT = 9912
-REPO = "OnlineChefGroep/kater-dev-tools"
 
 
 @pytest.fixture
@@ -82,12 +81,19 @@ def test_pr_audit_endpoint(api_server) -> None:
     assert "entries" in data
 
 
-def test_pr_list_requires_gh(api_server) -> None:
-    # The gh-backed endpoints must return a clean 502 (not 500) when gh fails,
-    # rather than leaking internals.
-    data = _get(PORT, f"/api/pr/list?repo={REPO}")
-    assert "pulls" in data
-    assert "count" in data
+def test_pr_list_clean_response_or_502(api_server) -> None:
+    # gh-backed: when gh + token are present the endpoint returns pulls/count;
+    # when gh is unavailable (e.g. CI without GH_TOKEN) it must return a clean
+    # 502, never a 500 that leaks internals.
+    try:
+        data = _get(PORT, "/api/pr/list?state=open&limit=5")
+    except urllib.error.HTTPError as err:
+        assert err.code == 502
+        body = json.loads(err.read())
+        assert "error" in body
+    else:
+        assert "pulls" in data
+        assert "count" in data
 
 
 def test_pr_status_bad_number(api_server) -> None:

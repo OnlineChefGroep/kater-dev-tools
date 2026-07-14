@@ -694,7 +694,10 @@ def _pr_list(req: Request) -> Response:
         limit = int(req.query1("limit") or "30")
     except (ValueError, TypeError):
         limit = 30
-    return Response.json(200, pr_list_tool(state=state, limit=limit))
+    try:
+        return Response.json(200, pr_list_tool(state=state, limit=limit))
+    except RuntimeError as exc:
+        return Response.json(502, {"error": str(exc)})
 
 
 @route("GET", "/api/pr/{number}/status")
