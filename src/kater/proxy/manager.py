@@ -359,7 +359,9 @@ class ProxyManager:
         if breaker is not None:
             if "error" in result and record_tool_errors:
                 breaker.record_failure()
-            elif "error" not in result:
+            else:
+                # A completed response is transport success. In particular, this
+                # releases a half-open probe for application/tool-level errors.
                 breaker.record_success()
         return result, False
 
@@ -388,9 +390,20 @@ class ProxyManager:
         except (TypeError, ValueError):
             return {"error": "_kater_route.estimated_units must be an integer >= 1"}
 
+        available = []
+        for binding, source in compatible:
+            backend = self._backends.get(binding.account.backend)
+            breaker = self._breakers.get(binding.account.backend)
+            try:
+                healthy = backend is not None and backend.is_healthy()
+            except Exception:
+                healthy = False
+            if healthy and (breaker is None or breaker.state != "open"):
+                available.append((binding, source))
+
         accounts = [
             self._runtime_account(binding.account, capability)
-            for binding, _source in compatible
+            for binding, _source in available
         ]
         request = RoutingRequest(
             capability=capability,
@@ -431,14 +444,20 @@ class ProxyManager:
 
             error = str(result.get("error", "")) if "error" in result else None
             if error is None:
-                consume_quota(capability, decision.account_id, estimated_units)
-                set_route_candidate_state(
-                    capability,
-                    decision.account_id,
-                    AccountState.ACTIVE,
-                )
-                set_route_affinity(capability, context_id, decision.account_id)
-                self._record_route_event(request, decision, "success")
+                try:
+                    consume_quota(capability, decision.account_id, estimated_units)
+                    set_route_candidate_state(
+                        capability,
+                        decision.account_id,
+                        AccountState.ACTIVE,
+                    )
+                    set_route_affinity(capability, context_id, decision.account_id)
+                except Exception as exc:
+                    logger.warning("route bookkeeping failed after success: %s", exc)
+                try:
+                    self._record_route_event(request, decision, "success")
+                except Exception as exc:
+                    logger.warning("route event failed after success: %s", exc)
                 return result
 
             last_error = error
