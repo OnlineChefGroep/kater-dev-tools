@@ -1,0 +1,37 @@
+name: CPM package smoke
+
+on:
+  pull_request:
+    paths:
+      - "packages/coding-provider-manager/**"
+      - ".github/workflows/cpm-package-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/coding-provider-manager/**"
+      - ".github/workflows/cpm-package-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Verify artifact
+        run: |
+          cd packages/coding-provider-manager
+          sha256sum -c SHA256SUMS
+      - name: Install and verify agent protocol
+        run: |
+          npm install --global --prefix "$RUNNER_TEMP/cpm" packages/coding-provider-manager/artifacts/onlinechefgroep-coding-provider-manager-0.4.0.tgz
+          "$RUNNER_TEMP/cpm/bin/cpm" --version
+          "$RUNNER_TEMP/cpm/bin/cpm" agent manifest
+          "$RUNNER_TEMP/cpm/bin/cpm" agent call system.status
