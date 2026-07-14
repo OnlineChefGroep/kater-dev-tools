@@ -42,7 +42,7 @@ ProxyManager.call_tool
        ├─ load persistent candidate pool from SQLite
        ├─ reject unavailable or schema-incompatible candidates
        ├─ overlay live in-flight count and backend latency
-       ├─ enforce state, cooldown, scopes, concurrency and every quota window
+       ├─ enforce state, cooldown, routing scopes, concurrency and every quota window
        ├─ preserve context affinity when the pinned account remains eligible
        ├─ rank deterministically by quota headroom, priority, capacity, cost, latency
        ├─ invoke backend/tool with routing metadata stripped
@@ -110,8 +110,14 @@ tool is called:
 }
 ```
 
-Without the envelope, Kater uses context `mcp-default`, no additional scopes,
-and one estimated unit.
+Without the envelope, Kater uses context `mcp-default`, no additional routing
+constraints, and one estimated unit.
+
+`context_id` is currently an affinity/correlation key, not an authenticated
+principal. `required_scopes` is a caller-supplied route-compatibility constraint,
+not an authorization grant or policy decision. Authentication remains enforced by
+Kater's existing auth gate. Policy-derived contexts and signed scoped tokens belong
+to CHE-660/CHE-695; this slice does not claim to implement them.
 
 ## Persistence model
 
@@ -134,7 +140,7 @@ or environment values.
 ## Selection invariants
 
 1. Disabled, active-cooldown and non-reset exhausted candidates are ineligible.
-2. Every required scope must be present on the candidate.
+2. Every caller-requested routing scope must be present on the candidate; this is not authorization.
 3. Candidate concurrency must have capacity.
 4. Every quota window must admit `estimated_units`.
 5. Reset windows behave as zero-used without requiring a cleanup job first.
@@ -142,8 +148,9 @@ or environment values.
 7. Quota headroom intentionally outweighs small price and latency differences.
 8. A successful account is pinned per capability/context while still eligible.
 9. Infrastructure failure clears that affinity and applies cooldown.
-10. Tool/business errors do not trigger fallback, preventing duplicate writes.
-11. Only candidates with an identical MCP input schema may share an alias.
+10. Tool/business errors do not trigger fallback or poison infrastructure health.
+11. Only candidates with an identical object-shaped MCP input schema may share an alias.
+12. Logical aliases cannot contain `__`, which remains reserved for concrete prefixed tools.
 
 ## Failure classification
 
@@ -156,9 +163,10 @@ was not safely executed:
 - transport/backend invocation exception.
 
 A normal backend result containing `error` is returned to the caller and not
-replayed elsewhere. This is essential for write-capabilities such as issue
-creation, deploys, merges and database mutations where an upstream may have
-committed the action before returning an error.
+replayed elsewhere. Repeated business or validation errors also do not open the
+infrastructure circuit breaker for a logical pool. This is essential for
+write-capabilities such as issue creation, deploys, merges and database mutations
+where an upstream may have committed the action before returning an error.
 
 ## Existing surfaces that become live immediately
 
@@ -178,9 +186,10 @@ contexts and signed scoped tokens, rather than being added prematurely here.
 
 ## Compatibility
 
-- Existing `backend__tool` names and behavior remain unchanged.
-- Logical aliases are additive and cannot shadow an existing concrete tool name.
-- Existing backend circuit breakers remain authoritative.
+- Existing `backend__tool` names and direct-call behavior remain unchanged.
+- Logical aliases are additive and cannot shadow or imitate concrete prefixed names.
+- Existing backend circuit breakers remain authoritative for direct tools.
+- Logical pools classify business errors separately from infrastructure failures.
 - No credential format, MCP transport, dashboard build or Computer/Fleet contract changes.
 - Removing all route candidates restores pre-PR behavior without migration.
 
@@ -192,18 +201,19 @@ The focused suite proves:
 - cooldown and reset recovery;
 - persistent route and quota round-trip;
 - logical alias publication through `tools/list`;
-- schema-incompatible candidates excluded from publication and fallback;
+- non-object and schema-incompatible candidates excluded from publication and fallback;
 - live fallback from a transport exception to a second backend;
 - routing metadata removal before backend invocation;
 - quota consumption only on success;
 - failed candidate cooldown;
 - context affinity and different-context rebalancing;
-- no fallback/replay for tool-level errors;
-- durable decision outcomes and canonical lifecycle validation.
+- no fallback/replay or circuit poisoning for repeated tool-level errors;
+- reserved logical namespace and durable decision outcomes;
+- canonical lifecycle validation.
 
 ## Explicitly deferred
 
-- credential brokerage and policy grants: CHE-660/CHE-695;
+- credential brokerage, policy grants and signed contexts: CHE-660/CHE-695;
 - provider usage reconciliation and invoice-grade cost accounting: CHE-694;
 - isolated connector process/container supervisor: CHE-661/CHE-696;
 - A2A task protocol: CHE-697;
