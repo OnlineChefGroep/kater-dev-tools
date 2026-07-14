@@ -194,9 +194,11 @@ def test_tool_level_error_does_not_repeat_side_effect_on_fallback(
     manager.register_backend("primary", primary)
     manager.register_backend("secondary", secondary)
 
-    assert manager.call_tool("github.issue.create", {"title": "x"}) == {
-        "error": "validation failed"
-    }
+    for _ in range(6):
+        assert manager.call_tool("github.issue.create", {"title": "x"}) == {
+            "error": "validation failed"
+        }
+    assert len(primary.calls) == 6
     assert secondary.calls == []
 
 
