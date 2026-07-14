@@ -237,13 +237,7 @@ class ProxyManager:
         self,
         bindings: list[RouteBinding],
     ) -> list[tuple[RouteBinding, ProxiedTool]]:
-        """Keep only candidates with an identical MCP input schema.
-
-        Fallback across incompatible schemas can corrupt arguments or replay a write
-        against a semantically different tool. The first available candidate defines
-        the canonical schema; incompatible candidates remain configured but are not
-        published or invoked until an explicit transform layer exists.
-        """
+        """Keep only candidates with an identical object-shaped MCP input schema."""
         compatible: list[tuple[RouteBinding, ProxiedTool]] = []
         canonical_schema: dict[str, Any] | None = None
         for binding in bindings:
@@ -253,6 +247,13 @@ class ProxyManager:
             if source is None:
                 continue
             schema = dict(source.input_schema or {})
+            if schema.get("type") not in (None, "object"):
+                logger.warning(
+                    "route candidate %s/%s excluded: non-object schema",
+                    binding.capability,
+                    binding.account.account_id,
+                )
+                continue
             if canonical_schema is None:
                 canonical_schema = schema
             if schema != canonical_schema:
@@ -284,12 +285,18 @@ class ProxyManager:
             properties[_ROUTE_META_KEY] = {
                 "type": "object",
                 "description": (
-                    "Optional Kater routing context; stripped before backend invocation."
+                    "Optional routing hints. Context is an affinity key, not an identity."
                 ),
                 "properties": {
-                    "context_id": {"type": "string"},
+                    "context_id": {
+                        "type": "string",
+                        "description": "Affinity key only; not an authenticated principal.",
+                    },
                     "required_scopes": {
                         "type": "array",
+                        "description": (
+                            "Routing compatibility constraint only; not authorization."
+                        ),
                         "items": {"type": "string"},
                     },
                     "estimated_units": {"type": "integer", "minimum": 1},
@@ -323,6 +330,8 @@ class ProxyManager:
         backend_name: str,
         original_name: str,
         arguments: dict[str, Any],
+        *,
+        record_tool_errors: bool = True,
     ) -> tuple[dict[str, Any], bool]:
         breaker = self._breakers.get(backend_name)
         if breaker is not None and not breaker.can_call():
@@ -348,9 +357,9 @@ class ProxyManager:
             )
             return {"error": f"Backend error: {type(exc).__name__}"}, True
         if breaker is not None:
-            if "error" in result:
+            if "error" in result and record_tool_errors:
                 breaker.record_failure()
-            else:
+            elif "error" not in result:
                 breaker.record_success()
         return result, False
 
@@ -364,9 +373,7 @@ class ProxyManager:
             return {"error": f"Unknown tool: {capability}"}
         compatible = self._compatible_route_bindings(bindings)
         if not compatible:
-            return {
-                "error": f"No available schema-compatible route for {capability}",
-            }
+            return {"error": f"No available schema-compatible route for {capability}"}
 
         call_arguments = dict(arguments)
         raw_meta = call_arguments.pop(_ROUTE_META_KEY, {})
@@ -412,6 +419,7 @@ class ProxyManager:
                     decision.backend,
                     decision.tool_name,
                     call_arguments,
+                    record_tool_errors=False,
                 )
             finally:
                 with self._route_lock:
@@ -424,6 +432,11 @@ class ProxyManager:
             error = str(result.get("error", "")) if "error" in result else None
             if error is None:
                 consume_quota(capability, decision.account_id, estimated_units)
+                set_route_candidate_state(
+                    capability,
+                    decision.account_id,
+                    AccountState.ACTIVE,
+                )
                 set_route_affinity(capability, context_id, decision.account_id)
                 self._record_route_event(request, decision, "success")
                 return result
@@ -441,8 +454,7 @@ class ProxyManager:
                     decision.account_id,
                     AccountState.COOLDOWN,
                     cooldown_until=(
-                        datetime.now(UTC)
-                        + timedelta(seconds=self._recovery_timeout)
+                        datetime.now(UTC) + timedelta(seconds=self._recovery_timeout)
                     ),
                 )
             self._record_route_event(request, decision, outcome, error=error)
