@@ -2914,7 +2914,9 @@ async function loadCatalogView() {
   const items = catalogFilter === 'all'
     ? catalogItems
     : catalogItems.filter(s => serverState(s) === catalogFilter);
-  document.getElementById('catalog-count').textContent = items.length + ' servers';
+  const serverCount = items.length;
+  document.getElementById('catalog-count').textContent =
+    serverCount === 1 ? '1 server' : serverCount + ' servers';
   grid.innerHTML = '';
   if (!items.length) {
     const empty = document.createElement('div');
