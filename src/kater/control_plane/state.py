@@ -44,7 +44,7 @@ class StateMachine(Generic[StateT]):
 
 AGENT_STATE_MACHINE = StateMachine(
     {
-        AgentState.IDLE: frozenset({AgentState.WORKING, AgentState.COMPLETED}),
+        AgentState.IDLE: frozenset({AgentState.WORKING}),
         AgentState.WORKING: frozenset(
             {
                 AgentState.WAITING,
