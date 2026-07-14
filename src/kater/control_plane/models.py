@@ -48,30 +48,39 @@ class QuotaWindow:
     resets_at: datetime | None = None
 
     def __post_init__(self) -> None:
+        if not self.name:
+            raise ValueError("quota window name is required")
         if self.limit < 0:
             raise ValueError("quota limit must be non-negative")
         if self.used < 0:
             raise ValueError("quota usage must be non-negative")
 
-    @property
-    def remaining(self) -> int:
-        return max(self.limit - self.used, 0)
+    def effective_used(self, now: datetime) -> int:
+        if self.resets_at is not None and now >= self.resets_at:
+            return 0
+        return self.used
 
-    @property
-    def remaining_ratio(self) -> float:
+    def remaining_at(self, now: datetime) -> int:
+        return max(self.limit - self.effective_used(now), 0)
+
+    def remaining_ratio_at(self, now: datetime) -> float:
         if self.limit == 0:
             return 0.0
-        return self.remaining / self.limit
-
-    def is_reset(self, now: datetime) -> bool:
-        return self.resets_at is not None and now >= self.resets_at
+        return self.remaining_at(now) / self.limit
 
 
 @dataclass(frozen=True, slots=True)
 class ProviderAccount:
+    """One routable account backed by one concrete MCP backend/tool pair.
+
+    Secrets are intentionally absent. Credential resolution remains owned by the
+    backend/credential broker; the routing layer only sees operational metadata.
+    """
+
     account_id: str
     provider: str
-    endpoint: str
+    backend: str
+    tool_name: str
     scopes: frozenset[str] = field(default_factory=frozenset)
     priority: int = 100
     max_concurrent: int = 1
@@ -83,10 +92,9 @@ class ProviderAccount:
     cooldown_until: datetime | None = None
 
     def __post_init__(self) -> None:
-        if not self.account_id:
-            raise ValueError("account_id is required")
-        if not self.provider:
-            raise ValueError("provider is required")
+        for field_name in ("account_id", "provider", "backend", "tool_name"):
+            if not getattr(self, field_name):
+                raise ValueError(f"{field_name} is required")
         if self.priority < 0:
             raise ValueError("priority must be non-negative")
         if self.max_concurrent < 1:
@@ -105,19 +113,30 @@ class ProviderAccount:
             and now >= self.cooldown_until
         ):
             return AccountState.ACTIVE
+        if (
+            self.state == AccountState.EXHAUSTED
+            and self.quota_windows
+            and all(
+                window.resets_at is not None and now >= window.resets_at
+                for window in self.quota_windows
+            )
+        ):
+            return AccountState.ACTIVE
         return self.state
 
     @property
     def concurrency_available(self) -> int:
         return max(self.max_concurrent - self.in_flight, 0)
 
-    def effective_windows(self, now: datetime) -> tuple[QuotaWindow, ...]:
-        return tuple(
-            QuotaWindow(name=window.name, limit=window.limit, resets_at=window.resets_at)
-            if window.is_reset(now)
-            else window
-            for window in self.quota_windows
-        )
+
+@dataclass(frozen=True, slots=True)
+class RouteBinding:
+    capability: str
+    account: ProviderAccount
+
+    def __post_init__(self) -> None:
+        if not self.capability:
+            raise ValueError("capability is required")
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,9 +157,11 @@ class RoutingRequest:
 
 @dataclass(frozen=True, slots=True)
 class RoutingDecision:
+    capability: str
     account_id: str
     provider: str
-    endpoint: str
+    backend: str
+    tool_name: str
     score: float
     reasons: tuple[str, ...]
 
