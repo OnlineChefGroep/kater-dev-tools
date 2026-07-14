@@ -136,9 +136,11 @@ def test_remote_context_enforces_expiry_and_scopes() -> None:
     )
 
 
-def test_agent_state_machine_rejects_invalid_terminal_transition() -> None:
+def test_agent_state_machine_rejects_invalid_terminal_transitions() -> None:
     transition = AGENT_STATE_MACHINE.transition(AgentState.IDLE, AgentState.WORKING)
     assert transition.current == AgentState.WORKING
+    with pytest.raises(InvalidTransition, match="idle -> completed"):
+        AGENT_STATE_MACHINE.transition(AgentState.IDLE, AgentState.COMPLETED)
     with pytest.raises(InvalidTransition, match="completed -> working"):
         AGENT_STATE_MACHINE.transition(AgentState.COMPLETED, AgentState.WORKING)
 
