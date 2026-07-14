@@ -310,11 +310,15 @@ def consume_quota(capability: str, account_id: str, units: int) -> None:
         db.execute(
             """UPDATE control_quota_windows
                SET used_units = CASE
-                 WHEN resets_at IS NOT NULL AND resets_at <= ? THEN MIN(limit_units, ?)
-                 ELSE MIN(limit_units, used_units + ?)
-               END
+                     WHEN resets_at IS NOT NULL AND resets_at <= ? THEN MIN(limit_units, ?)
+                     ELSE MIN(limit_units, used_units + ?)
+                   END,
+                   resets_at = CASE
+                     WHEN resets_at IS NOT NULL AND resets_at <= ? THEN NULL
+                     ELSE resets_at
+                   END
                WHERE capability = ? AND account_id = ?""",
-            (now, units, units, capability, account_id),
+            (now, units, units, now, capability, account_id),
         )
 
 
