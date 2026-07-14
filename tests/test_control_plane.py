@@ -141,3 +141,13 @@ def test_agent_state_machine_rejects_invalid_terminal_transition() -> None:
     assert transition.current == AgentState.WORKING
     with pytest.raises(InvalidTransition, match="completed -> working"):
         AGENT_STATE_MACHINE.transition(AgentState.COMPLETED, AgentState.WORKING)
+
+
+def test_logical_capability_rejects_prefixed_tool_separator() -> None:
+    from kater.control_plane import RouteBinding
+
+    with pytest.raises(ValueError, match="cannot contain"):
+        RouteBinding(
+            capability="github__search",
+            account=account("github", remaining=100),
+        )
