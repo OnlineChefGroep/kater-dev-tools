@@ -389,6 +389,10 @@ def route_overview() -> dict[str, Any]:
         1
         for binding in bindings
         if binding.account.effective_state(current) == AccountState.ACTIVE
+        and all(
+            window.remaining_at(current) > 0
+            for window in binding.account.quota_windows
+        )
     )
     with _lock, _connect() as db:
         row = db.execute(
