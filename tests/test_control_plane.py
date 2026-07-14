@@ -16,6 +16,11 @@ from kater.control_plane import (
 )
 
 NOW = datetime(2026, 7, 14, 8, 0, tzinfo=UTC)
+CONTEXT = RemoteContext(
+    context_id="ctx-1",
+    principal_id="agent-1",
+    scopes=frozenset({"models.invoke"}),
+)
 
 
 def account(
@@ -53,6 +58,7 @@ def test_router_prefers_quota_headroom_before_minor_cost_difference() -> None:
             account("healthy-pool", remaining=90, cost=1.0, priority=10),
         ],
         RoutingRequest("llm.invoke", "ctx-1", frozenset({"models.invoke"}), 2),
+        CONTEXT,
         now=NOW,
     )
     assert decision.account_id == "healthy-pool"
@@ -73,6 +79,7 @@ def test_router_excludes_scope_capacity_quota_and_cooldown_failures() -> None:
             account("eligible", remaining=20),
         ],
         RoutingRequest("llm.invoke", "ctx-1", frozenset({"models.invoke"}), 1),
+        CONTEXT,
         now=NOW,
     )
     assert [decision.account_id for decision in decisions] == ["eligible"]
@@ -98,9 +105,20 @@ def test_expired_cooldown_and_reset_quota_become_eligible() -> None:
     decision = QuotaAwareRouter().select(
         [candidate],
         RoutingRequest("llm.invoke", "ctx-1", frozenset({"models.invoke"})),
+        CONTEXT,
         now=NOW,
     )
     assert decision.account_id == "reset"
+    assert candidate.effective_windows(NOW)[0].resets_at is None
+
+
+def test_provider_account_rejects_endpoint_userinfo() -> None:
+    with pytest.raises(ValueError, match="endpoint must not contain userinfo"):
+        ProviderAccount(
+            account_id="unsafe",
+            provider="provider",
+            endpoint="https://user:password@example.test/v1",
+        )
 
 
 def test_no_route_raises_structured_error() -> None:
@@ -108,8 +126,29 @@ def test_no_route_raises_structured_error() -> None:
         QuotaAwareRouter().select(
             [account("disabled", remaining=100, state=AccountState.DISABLED)],
             RoutingRequest("llm.invoke", "ctx-1"),
+            CONTEXT,
             now=NOW,
         )
+
+
+def test_router_requires_matching_active_context_scopes() -> None:
+    request = RoutingRequest("llm.invoke", "ctx-1", frozenset({"models.invoke"}))
+    expired_context = RemoteContext(
+        context_id="ctx-1",
+        principal_id="agent-1",
+        scopes=frozenset({"models.invoke"}),
+        expires_at=NOW,
+    )
+    missing_scope_context = RemoteContext(
+        context_id="ctx-1",
+        principal_id="agent-1",
+        scopes=frozenset(),
+    )
+
+    router = QuotaAwareRouter()
+    candidates = [account("eligible", remaining=100)]
+    assert router.rank(candidates, request, expired_context, now=NOW) == []
+    assert router.rank(candidates, request, missing_scope_context, now=NOW) == []
 
 
 def test_remote_context_enforces_expiry_and_scopes() -> None:

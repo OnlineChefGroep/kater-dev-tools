@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
+from urllib.parse import urlsplit
 
 
 class AccountState(StrEnum):
@@ -87,6 +88,8 @@ class ProviderAccount:
             raise ValueError("account_id is required")
         if not self.provider:
             raise ValueError("provider is required")
+        if "@" in urlsplit(self.endpoint).netloc:
+            raise ValueError("endpoint must not contain userinfo")
         if self.priority < 0:
             raise ValueError("priority must be non-negative")
         if self.max_concurrent < 1:
@@ -113,7 +116,7 @@ class ProviderAccount:
 
     def effective_windows(self, now: datetime) -> tuple[QuotaWindow, ...]:
         return tuple(
-            QuotaWindow(name=window.name, limit=window.limit, resets_at=window.resets_at)
+            QuotaWindow(name=window.name, limit=window.limit, resets_at=None)
             if window.is_reset(now)
             else window
             for window in self.quota_windows

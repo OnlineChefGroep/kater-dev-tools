@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from kater.control_plane.models import (
     AccountState,
     ProviderAccount,
+    RemoteContext,
     RoutingDecision,
     RoutingRequest,
 )
@@ -34,10 +35,15 @@ class QuotaAwareRouter:
         self,
         accounts: list[ProviderAccount],
         request: RoutingRequest,
+        context: RemoteContext,
         *,
         now: datetime | None = None,
     ) -> list[RoutingDecision]:
         current = now or datetime.now(UTC)
+        if context.context_id != request.context_id or not context.allows(
+            request.required_scopes, current
+        ):
+            return []
         decisions: list[RoutingDecision] = []
         for account in accounts:
             decision = self._evaluate(account, request, current)
@@ -49,10 +55,11 @@ class QuotaAwareRouter:
         self,
         accounts: list[ProviderAccount],
         request: RoutingRequest,
+        context: RemoteContext,
         *,
         now: datetime | None = None,
     ) -> RoutingDecision:
-        ranked = self.rank(accounts, request, now=now)
+        ranked = self.rank(accounts, request, context, now=now)
         if not ranked:
             raise NoRouteAvailable(
                 f"no account available for capability={request.capability!r} "
