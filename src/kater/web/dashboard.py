@@ -1029,13 +1029,13 @@ _VIEW_CATALOG = r"""
 <div class="view" id="view-catalog">
     <div class="view-header">
       <span class="view-title">Server catalog</span>
-      <span class="panel-meta tnum" id="catalog-count" aria-live="polite">0 servers</span>
+      <span class="panel-meta tnum" id="catalog-count" role="status">0 servers</span>
     </div>
     <div class="view-scroll">
       <div class="catalog-toolbar">
         <input class="form-input" id="catalog-search" type="search"
           placeholder="Search servers..." autocomplete="off"
-          aria-label="Search servers" aria-describedby="catalog-count">
+          aria-label="Search servers">
         <div class="facet-row" id="catalog-facets" role="group" aria-label="Filter by status">
           <button class="facet active interactive" type="button" data-cfilter="all" aria-pressed="true">All</button>
           <button class="facet interactive" type="button" data-cfilter="ready" aria-pressed="false">Ready</button>
