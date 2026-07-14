@@ -137,6 +137,8 @@ class RouteBinding:
     def __post_init__(self) -> None:
         if not self.capability:
             raise ValueError("capability is required")
+        if "__" in self.capability:
+            raise ValueError("logical capability cannot contain '__'")
 
 
 @dataclass(frozen=True, slots=True)
