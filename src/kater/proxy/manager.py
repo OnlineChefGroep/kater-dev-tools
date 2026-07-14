@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import threading
 import time
 from dataclasses import replace
@@ -38,6 +39,20 @@ from kater.telemetry import TelemetryEvent, record_event
 logger = logging.getLogger("kater.proxy")
 
 _ROUTE_META_KEY = "_kater_route"
+_BEARER_SECRET = re.compile(r"(?i)\bBearer\s+[^\s,;]+")
+_NAMED_SECRET = re.compile(
+    r"(?i)\b(authorization|api[-_ ]?key|token|secret|password)"
+    r"(\s*[:=]\s*)([^\s,;]+)"
+)
+
+
+def _route_error_summary(error: str | None) -> str | None:
+    if not error:
+        return None
+    text = " ".join(str(error).split())
+    text = _BEARER_SECRET.sub("Bearer ***", text)
+    text = _NAMED_SECRET.sub(r"\1\2***", text)
+    return text[:500]
 
 
 class CircuitBreaker:
@@ -326,7 +341,12 @@ class ProxyManager:
         except Exception as exc:
             if breaker is not None:
                 breaker.record_failure()
-            return {"error": f"Backend error: {exc}"}, True
+            logger.warning(
+                "backend %s invocation failed: %s",
+                backend_name,
+                type(exc).__name__,
+            )
+            return {"error": f"Backend error: {type(exc).__name__}"}, True
         if breaker is not None:
             if "error" in result:
                 breaker.record_failure()
@@ -431,7 +451,7 @@ class ProxyManager:
                     "account_id": decision.account_id,
                     "backend": decision.backend,
                     "tool_name": decision.tool_name,
-                    "error": error,
+                    "error": _route_error_summary(error),
                     "retriable": retriable,
                 }
             )
@@ -439,7 +459,7 @@ class ProxyManager:
                 return result
 
         return {
-            "error": f"All routes failed for {capability}: {last_error}",
+            "error": f"All routes failed for {capability}: {_route_error_summary(last_error)}",
             "attempts": attempts,
         }
 
@@ -461,8 +481,14 @@ class ProxyManager:
         *,
         error: str | None = None,
     ) -> None:
+        safe_error = _route_error_summary(error)
         try:
-            record_routing_decision(request, decision, outcome=outcome, error=error)
+            record_routing_decision(
+                request,
+                decision,
+                outcome=outcome,
+                error=safe_error,
+            )
         except Exception as exc:
             logger.warning("failed to persist routing decision: %s", exc)
         record_event(
@@ -480,7 +506,7 @@ class ProxyManager:
                     "score": decision.score,
                     "reasons": decision.reasons,
                     "outcome": outcome,
-                    "error": error,
+                    "error": safe_error,
                 },
             )
         )
