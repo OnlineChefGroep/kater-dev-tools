@@ -1,59 +1,213 @@
-# Kater control-plane wave: routing, contexts and operator state
+# Kater routed capability pools — vertical slice
 
-Status: implementation started
-Linear project: Kater Capability Fabric + Computer/Fleet
-Milestone: M2 — Kater capability fabric
+Status: implemented in PR #108  
+Linear: CHE-693  
+Boundary: Kater capability fabric; not a model gateway and not Computer/Fleet
 
-## Decision
+## What this actually ships
 
-Kater remains the capability and autonomous-engineering control plane. It may adopt proven gateway patterns from OmniRoute, but it does not become an inference-router clone.
+Kater can now expose one stable logical MCP tool name backed by multiple concrete
+backend/tool/account candidates.
 
-The product boundary is explicit:
+Example:
 
-- gateway: protocol ingress, authentication, context resolution and capability discovery;
-- routing core: provider/account pools, quotas, concurrency, health, cost and fallback;
-- headless runtime: connector and embedded-service lifecycle;
-- operator API: agents, jobs, interventions, evidence and audit;
-- dashboard: a projection over the operator API, never the source of truth.
+```text
+web.search
+├── exa-account-a → exa-a__web_search_exa
+├── exa-account-b → exa-b__web_search_exa
+└── exa-account-c → exa-c__web_search_exa
+```
 
-## First implementation slice
+The agent sees `web.search`. Kater chooses the eligible candidate, invokes it,
+records the decision, consumes quota, preserves context affinity, and falls back
+only when the failure is infrastructure-level.
 
-This branch introduces dependency-free domain contracts for:
+This is deliberately different from aliasing a model endpoint. The routed unit
+is a Kater capability backed by an existing MCP backend/tool pair. Credentials
+remain inside the existing backend or future credential broker and never enter
+the routing store, decision object, telemetry event, or CLI output.
 
-- provider accounts and multi-window quotas;
-- deterministic quota-aware account ranking;
-- remote contexts with expiry and scopes;
-- canonical agent states;
-- embedded-service lifecycle states;
-- typed intervention records.
+## End-to-end call path
 
-The selector deliberately does not receive or return credentials. Credential resolution remains a separate policy-controlled step.
+```text
+MCP client
+  │ calls logical alias + optional _kater_route metadata
+  ▼
+ProxyManager.call_tool
+  │
+  ├─ direct prefixed tool? ───────────────► existing behavior, unchanged
+  │
+  └─ logical capability alias
+       │
+       ├─ load persistent candidate pool from SQLite
+       ├─ reject unavailable or schema-incompatible candidates
+       ├─ overlay live in-flight count and backend latency
+       ├─ enforce state, cooldown, scopes, concurrency and every quota window
+       ├─ preserve context affinity when the pinned account remains eligible
+       ├─ rank deterministically by quota headroom, priority, capacity, cost, latency
+       ├─ invoke backend/tool with routing metadata stripped
+       ├─ fallback only for circuit/open/unavailable/unhealthy/transport failures
+       ├─ never repeat a tool-level/business error on another backend
+       ├─ consume quota on success
+       ├─ place failed infrastructure candidate into bounded cooldown
+       └─ persist + broadcast route_decision evidence
+```
 
-## Routing invariants
+## Operator workflow
 
-1. Disabled, exhausted or active-cooldown accounts are never selected.
-2. Required scopes must be a subset of account scopes.
-3. Concurrency and every quota window must admit the request.
-4. Expired cooldowns and reset quota windows become eligible without mutating persisted state.
-5. Ranking is deterministic; ties are broken by stable account ID.
-6. Quota headroom dominates minor price or latency improvements to avoid burning the final usable account.
-7. Every decision exposes reasons suitable for audit, telemetry and dashboard projection.
+Route state is managed with the package entry point `kater-routes`. It uses the
+same `.kater/kater.db` as Kater but separate `control_*` tables.
 
-## Required follow-up slices
+### Register candidates
 
-1. Persist provider/account pools, quota observations and usage ledger in SQLite.
-2. Add policy-scoped remote context creation and short-lived token claims.
-3. Integrate logical capability aliases and fallback into ProxyManager.
-4. Add retry classification, cooldown feedback and session stickiness.
-5. Expose routing decisions and quota state through REST, MCP and WebSocket.
-6. Split embedded connector supervision from the central gateway process.
-7. Add A2A task/status/artifact endpoints.
-8. Connect agent state, resumability and intervention queue to repository/worktree/PR/Linear jobs.
+```bash
+kater-routes add web.search \
+  --account exa-primary \
+  --provider exa \
+  --backend exa-primary \
+  --tool web_search_exa \
+  --scopes web.read \
+  --priority 10 \
+  --max-concurrent 4 \
+  --cost-per-million 5.0 \
+  --quota monthly:1000000:0
 
-## Non-goals for this slice
+kater-routes add web.search \
+  --account exa-secondary \
+  --provider exa \
+  --backend exa-secondary \
+  --tool web_search_exa \
+  --scopes web.read \
+  --priority 20 \
+  --max-concurrent 2 \
+  --quota daily:2000:0
+```
 
-- no provider credentials in routing models;
-- no dashboard-only state;
-- no migration of Computer/Fleet ownership into Kater;
-- no implicit policy grants from Brain or prompts;
-- no compatibility break for existing prefixed MCP tools.
+### Inspect and dry-run
+
+```bash
+kater-routes list --capability web.search
+kater-routes dry-run web.search \
+  --context CHE-693 \
+  --scopes web.read \
+  --estimated-units 1
+kater-routes decisions --capability web.search --limit 50
+```
+
+### Invoke from MCP
+
+The `_kater_route` envelope is optional and is removed before the concrete MCP
+tool is called:
+
+```json
+{
+  "query": "Utrecht open data",
+  "_kater_route": {
+    "context_id": "CHE-693",
+    "required_scopes": ["web.read"],
+    "estimated_units": 1
+  }
+}
+```
+
+Without the envelope, Kater uses context `mcp-default`, no additional scopes,
+and one estimated unit.
+
+## Persistence model
+
+The vertical slice creates four SQLite tables:
+
+| Table | Role |
+|---|---|
+| `control_route_candidates` | Logical capability → account/backend/tool metadata |
+| `control_quota_windows` | Multiple quota windows per candidate |
+| `control_routing_decisions` | Immutable attempt/outcome ledger |
+| `control_route_affinity` | Context-scoped successful account pin |
+
+Every mutation is transactional. SQLite uses WAL and a bounded busy timeout so
+route decisions can coexist with the normal telemetry writer. Route
+configuration survives gateway restart. Decision records contain capability,
+context, candidate, concrete backend/tool, score, reasons, outcome and a bounded
+redacted error summary. They do not contain arguments, responses, credentials
+or environment values.
+
+## Selection invariants
+
+1. Disabled, active-cooldown and non-reset exhausted candidates are ineligible.
+2. Every required scope must be present on the candidate.
+3. Candidate concurrency must have capacity.
+4. Every quota window must admit `estimated_units`.
+5. Reset windows behave as zero-used without requiring a cleanup job first.
+6. Ranking is deterministic; account ID is the final tie-breaker.
+7. Quota headroom intentionally outweighs small price and latency differences.
+8. A successful account is pinned per capability/context while still eligible.
+9. Infrastructure failure clears that affinity and applies cooldown.
+10. Tool/business errors do not trigger fallback, preventing duplicate writes.
+11. Only candidates with an identical MCP input schema may share an alias.
+
+## Failure classification
+
+Fallback is allowed only when Kater itself can establish that the selected route
+was not safely executed:
+
+- circuit breaker open;
+- backend absent;
+- backend unhealthy;
+- transport/backend invocation exception.
+
+A normal backend result containing `error` is returned to the caller and not
+replayed elsewhere. This is essential for write-capabilities such as issue
+creation, deploys, merges and database mutations where an upstream may have
+committed the action before returning an error.
+
+## Existing surfaces that become live immediately
+
+No parallel dashboard state or new undocumented REST island is introduced. The
+slice feeds existing Kater surfaces:
+
+- `tools/list`: includes logical aliases when a compatible concrete tool exists;
+- MCP `tools/call`: performs real routing and bounded fallback;
+- `/api/events` and `/api/telemetry`: include `route_decision` events;
+- `/api/evals`: includes route success/fallback/failure totals;
+- `/api/status`: includes persistent route/candidate/affinity/decision counts;
+- WebSocket telemetry: broadcasts each routing attempt outcome.
+
+The durable detail ledger remains queryable through `kater-routes decisions`.
+A dedicated policy-scoped REST surface belongs in CHE-695, together with remote
+contexts and signed scoped tokens, rather than being added prematurely here.
+
+## Compatibility
+
+- Existing `backend__tool` names and behavior remain unchanged.
+- Logical aliases are additive and cannot shadow an existing concrete tool name.
+- Existing backend circuit breakers remain authoritative.
+- No credential format, MCP transport, dashboard build or Computer/Fleet contract changes.
+- Removing all route candidates restores pre-PR behavior without migration.
+
+## Acceptance evidence
+
+The focused suite proves:
+
+- deterministic quota-aware eligibility and ranking;
+- cooldown and reset recovery;
+- persistent route and quota round-trip;
+- logical alias publication through `tools/list`;
+- schema-incompatible candidates excluded from publication and fallback;
+- live fallback from a transport exception to a second backend;
+- routing metadata removal before backend invocation;
+- quota consumption only on success;
+- failed candidate cooldown;
+- context affinity and different-context rebalancing;
+- no fallback/replay for tool-level errors;
+- durable decision outcomes and canonical lifecycle validation.
+
+## Explicitly deferred
+
+- credential brokerage and policy grants: CHE-660/CHE-695;
+- provider usage reconciliation and invoice-grade cost accounting: CHE-694;
+- isolated connector process/container supervisor: CHE-661/CHE-696;
+- A2A task protocol: CHE-697;
+- repository/worktree/PR job resumability and intervention queue: CHE-698.
+
+Those items now build on a real routing execution path instead of another set of
+standalone domain objects.
