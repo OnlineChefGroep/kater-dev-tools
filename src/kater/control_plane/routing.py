@@ -25,7 +25,7 @@ class RoutingWeights:
 
 
 class QuotaAwareRouter:
-    """Rank provider accounts without exposing credentials or mutating account state."""
+    """Deterministically rank account-backed MCP routes without seeing secrets."""
 
     def __init__(self, weights: RoutingWeights | None = None) -> None:
         self._weights = weights or RoutingWeights()
@@ -72,12 +72,16 @@ class QuotaAwareRouter:
             return None
         if not request.required_scopes.issubset(account.scopes):
             return None
-
-        windows = account.effective_windows(now)
-        if any(window.remaining < request.estimated_units for window in windows):
+        if any(
+            window.remaining_at(now) < request.estimated_units
+            for window in account.quota_windows
+        ):
             return None
 
-        quota_ratio = min((window.remaining_ratio for window in windows), default=1.0)
+        quota_ratio = min(
+            (window.remaining_ratio_at(now) for window in account.quota_windows),
+            default=1.0,
+        )
         priority_score = 1.0 / (1.0 + account.priority)
         concurrency_score = account.concurrency_available / account.max_concurrent
         cost_score = 1.0 / (1.0 + account.cost_per_million_units)
@@ -98,9 +102,11 @@ class QuotaAwareRouter:
             f"latency_ms={account.latency_ms:.1f}",
         )
         return RoutingDecision(
+            capability=request.capability,
             account_id=account.account_id,
             provider=account.provider,
-            endpoint=account.endpoint,
+            backend=account.backend,
+            tool_name=account.tool_name,
             score=round(score, 6),
             reasons=reasons,
         )
