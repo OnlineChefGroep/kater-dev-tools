@@ -124,6 +124,14 @@ class ProviderAccount:
             return AccountState.ACTIVE
         return self.state
 
+    def effective_windows(self, now: datetime) -> tuple[QuotaWindow, ...]:
+        return tuple(
+            QuotaWindow(name=window.name, limit=window.limit, used=0, resets_at=None)
+            if window.resets_at is not None and now >= window.resets_at
+            else window
+            for window in self.quota_windows
+        )
+
     @property
     def concurrency_available(self) -> int:
         return max(self.max_concurrent - self.in_flight, 0)

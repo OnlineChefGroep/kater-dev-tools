@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from kater.control_plane.models import (
     AccountState,
     ProviderAccount,
+    RemoteContext,
     RoutingDecision,
     RoutingRequest,
 )
@@ -35,9 +36,15 @@ class QuotaAwareRouter:
         accounts: list[ProviderAccount],
         request: RoutingRequest,
         *,
+        context: RemoteContext | None = None,
         now: datetime | None = None,
     ) -> list[RoutingDecision]:
         current = now or datetime.now(UTC)
+        if context is not None and (
+            context.context_id != request.context_id
+            or not context.allows(request.required_scopes, current)
+        ):
+            return []
         decisions: list[RoutingDecision] = []
         for account in accounts:
             decision = self._evaluate(account, request, current)
@@ -50,9 +57,10 @@ class QuotaAwareRouter:
         accounts: list[ProviderAccount],
         request: RoutingRequest,
         *,
+        context: RemoteContext | None = None,
         now: datetime | None = None,
     ) -> RoutingDecision:
-        ranked = self.rank(accounts, request, now=now)
+        ranked = self.rank(accounts, request, context=context, now=now)
         if not ranked:
             raise NoRouteAvailable(
                 f"no account available for capability={request.capability!r} "
@@ -72,14 +80,12 @@ class QuotaAwareRouter:
             return None
         if not request.required_scopes.issubset(account.scopes):
             return None
-        if any(
-            window.remaining_at(now) < request.estimated_units
-            for window in account.quota_windows
-        ):
+        windows = account.effective_windows(now)
+        if any(window.remaining_at(now) < request.estimated_units for window in windows):
             return None
 
         quota_ratio = min(
-            (window.remaining_ratio_at(now) for window in account.quota_windows),
+            (window.remaining_ratio_at(now) for window in windows),
             default=1.0,
         )
         priority_score = 1.0 / (1.0 + account.priority)
