@@ -15,7 +15,6 @@ from kater.control_plane import (
     RoutingRequest,
 )
 
-
 NOW = datetime(2026, 7, 14, 8, 0, tzinfo=UTC)
 
 
@@ -105,7 +104,7 @@ def test_expired_cooldown_and_reset_quota_become_eligible() -> None:
 
 
 def test_no_route_raises_structured_error() -> None:
-    with pytest.raises(NoRouteAvailable, match="capability='llm.invoke'"):
+    with pytest.raises(NoRouteAvailable, match=r"capability='llm\.invoke'"):
         QuotaAwareRouter().select(
             [account("disabled", remaining=100, state=AccountState.DISABLED)],
             RoutingRequest("llm.invoke", "ctx-1"),
