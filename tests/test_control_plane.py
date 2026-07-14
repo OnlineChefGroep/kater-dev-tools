@@ -22,6 +22,7 @@ def account(
     account_id: str,
     *,
     remaining: int,
+    backend: str | None = None,
     limit: int = 100,
     priority: int = 100,
     cost: float = 0.0,
@@ -29,25 +30,33 @@ def account(
     state: AccountState = AccountState.ACTIVE,
     cooldown_until: datetime | None = None,
     scopes: frozenset[str] = frozenset({"models.invoke"}),
+    resets_at: datetime | None = None,
 ) -> ProviderAccount:
     return ProviderAccount(
         account_id=account_id,
         provider="provider",
-        endpoint=f"https://{account_id}.example.test/v1",
+        backend=backend or account_id,
+        tool_name="invoke",
         scopes=scopes,
         priority=priority,
         max_concurrent=2,
         cost_per_million_units=cost,
         latency_ms=latency,
-        quota_windows=(QuotaWindow("monthly", limit=limit, used=limit - remaining),),
+        quota_windows=(
+            QuotaWindow(
+                "monthly",
+                limit=limit,
+                used=limit - remaining,
+                resets_at=resets_at,
+            ),
+        ),
         state=state,
         cooldown_until=cooldown_until,
     )
 
 
 def test_router_prefers_quota_headroom_before_minor_cost_difference() -> None:
-    router = QuotaAwareRouter()
-    decision = router.select(
+    decision = QuotaAwareRouter().select(
         [
             account("nearly-empty", remaining=5, cost=0.0, priority=1),
             account("healthy-pool", remaining=90, cost=1.0, priority=10),
@@ -56,11 +65,12 @@ def test_router_prefers_quota_headroom_before_minor_cost_difference() -> None:
         now=NOW,
     )
     assert decision.account_id == "healthy-pool"
+    assert decision.backend == "healthy-pool"
+    assert decision.tool_name == "invoke"
 
 
 def test_router_excludes_scope_capacity_quota_and_cooldown_failures() -> None:
-    router = QuotaAwareRouter()
-    decisions = router.rank(
+    decisions = QuotaAwareRouter().rank(
         [
             account("no-scope", remaining=100, scopes=frozenset()),
             account("exhausted", remaining=0),
@@ -78,29 +88,28 @@ def test_router_excludes_scope_capacity_quota_and_cooldown_failures() -> None:
     assert [decision.account_id for decision in decisions] == ["eligible"]
 
 
-def test_expired_cooldown_and_reset_quota_become_eligible() -> None:
-    candidate = ProviderAccount(
-        account_id="reset",
-        provider="provider",
-        endpoint="https://reset.example.test/v1",
-        scopes=frozenset({"models.invoke"}),
+def test_expired_cooldown_and_exhausted_reset_window_become_eligible() -> None:
+    cooldown = account(
+        "cooldown-reset",
+        remaining=10,
         state=AccountState.COOLDOWN,
         cooldown_until=NOW - timedelta(seconds=1),
-        quota_windows=(
-            QuotaWindow(
-                "daily",
-                limit=100,
-                used=100,
-                resets_at=NOW - timedelta(seconds=1),
-            ),
-        ),
     )
-    decision = QuotaAwareRouter().select(
-        [candidate],
+    exhausted = account(
+        "quota-reset",
+        remaining=0,
+        state=AccountState.EXHAUSTED,
+        resets_at=NOW - timedelta(seconds=1),
+    )
+    decisions = QuotaAwareRouter().rank(
+        [cooldown, exhausted],
         RoutingRequest("llm.invoke", "ctx-1", frozenset({"models.invoke"})),
         now=NOW,
     )
-    assert decision.account_id == "reset"
+    assert {decision.account_id for decision in decisions} == {
+        "cooldown-reset",
+        "quota-reset",
+    }
 
 
 def test_no_route_raises_structured_error() -> None:
@@ -121,7 +130,10 @@ def test_remote_context_enforces_expiry_and_scopes() -> None:
     )
     assert context.allows(frozenset({"models.invoke"}), NOW)
     assert not context.allows(frozenset({"github.write"}), NOW)
-    assert not context.allows(frozenset({"models.invoke"}), NOW + timedelta(minutes=11))
+    assert not context.allows(
+        frozenset({"models.invoke"}),
+        NOW + timedelta(minutes=11),
+    )
 
 
 def test_agent_state_machine_rejects_invalid_terminal_transition() -> None:
