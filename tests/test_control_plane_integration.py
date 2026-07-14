@@ -247,3 +247,43 @@ def test_schema_incompatible_candidate_is_not_used_for_fallback(
 
     assert result["error"].startswith("All routes failed")
     assert secondary.calls == []
+
+
+def test_consuming_expired_quota_clears_stale_reset_boundary(tmp_path, monkeypatch) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    monkeypatch.chdir(tmp_path)
+    clear_control_plane_state()
+    upsert_route_candidate(
+        "web.search",
+        ProviderAccount(
+            account_id="reset-account",
+            provider="provider",
+            backend="primary",
+            tool_name="search",
+            scopes=frozenset({"web.read"}),
+            quota_windows=(
+                QuotaWindow(
+                    "daily",
+                    limit=10,
+                    used=10,
+                    resets_at=datetime.now(UTC) - timedelta(seconds=1),
+                ),
+            ),
+        ),
+    )
+    manager = ProxyManager()
+    manager.register_backend(
+        "primary",
+        MockBackend(tools=[{"name": "search"}], responses={"search": {"ok": True}}),
+    )
+
+    assert manager.call_tool(
+        "web.search",
+        {"_kater_route": {"required_scopes": ["web.read"], "estimated_units": 3}},
+    ) == {"ok": True}
+
+    refreshed = list_route_candidates("web.search")[0].account.quota_windows[0]
+    assert refreshed.used == 3
+    assert refreshed.resets_at is None
+    assert refreshed.remaining_at(datetime.now(UTC)) == 7
