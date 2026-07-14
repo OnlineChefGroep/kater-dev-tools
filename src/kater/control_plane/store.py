@@ -20,6 +20,8 @@ from kater.settings import load_settings
 
 _SCHEMA = """
 PRAGMA foreign_keys = ON;
+PRAGMA journal_mode = WAL;
+PRAGMA busy_timeout = 10000;
 
 CREATE TABLE IF NOT EXISTS control_route_candidates (
     capability TEXT NOT NULL,
@@ -174,6 +176,10 @@ def upsert_route_candidate(capability: str, account: ProviderAccount) -> None:
 
 def remove_route_candidate(capability: str, account_id: str) -> bool:
     with _lock, _connect() as db:
+        db.execute(
+            "DELETE FROM control_route_affinity WHERE capability = ? AND account_id = ?",
+            (capability, account_id),
+        )
         cursor = db.execute(
             "DELETE FROM control_route_candidates WHERE capability = ? AND account_id = ?",
             (capability, account_id),
