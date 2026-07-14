@@ -7,7 +7,6 @@ from typing import Generic, TypeVar
 
 from kater.control_plane.models import AgentState, ServiceState
 
-
 StateT = TypeVar("StateT", bound=StrEnum)
 
 
