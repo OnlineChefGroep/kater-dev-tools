@@ -1023,7 +1023,7 @@ def pr_merge_command(
     number: Annotated[int, typer.Argument(help="PR number.")],
     expected_head_sha: Annotated[
         str, typer.Option("--expected-head", help="Pin the expected head SHA (required).")
-    ] = "",
+    ],
     actor: Annotated[str, typer.Option("--actor", help="Actor label for the audit trail.")] = "",
 ) -> None:
     """Gate-then-merge a PR (squash). Requires PASS and pinned expected head."""

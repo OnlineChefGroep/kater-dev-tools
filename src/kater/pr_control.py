@@ -415,6 +415,19 @@ def merge_pr(
     """
     from kater.storage import record_gate_audit
 
+    if not expected_head_sha.strip():
+        record_gate_audit(
+            action="merge_rejected",
+            pr_number=number,
+            verdict=VERDICT_BLOCK,
+            reasons=[],
+            expected_head_sha=None,
+            applied_head_sha=None,
+            actor=actor or None,
+            detail="missing expected head sha",
+        )
+        raise MergeRejected("expected_head_sha required")
+
     client = GitHubPRClient()
     pr = client.pull_request(number)
     gate = gate_for_pr(client, pr, policy=policy)
