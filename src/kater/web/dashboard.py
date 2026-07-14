@@ -878,7 +878,7 @@ _HTML_SHELL_TOP = r"""
       </button>
       <button class="tab interactive" data-view="pr" onclick="switchView('pr')">
         <svg class="tab-icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M5 8l2 2 4-4"/></svg>
-        <span class="tab-label">PR control</span> <span class="tab-kbd">4</span>
+        <span class="tab-label">PR control</span>
       </button>
       <button class="tab interactive" data-view="evals" onclick="switchView('evals')">
         <svg class="tab-icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 14.5h13"/><path d="M3.5 11v3"/><path d="M7 7v7"/><path d="M10.5 9v5"/><path d="M14 4v10"/></svg>
@@ -2808,7 +2808,8 @@ function setTunnelButton(provider, running) {
   const btn = tunnelBtn(provider);
   if (!btn) return;
   btn.classList.toggle('active', !!running);
-  btn.textContent = running ? 'ON' : 'Start';
+  // Visible label matches the action announced to assistive tech.
+  btn.textContent = running ? 'Stop' : 'Start';
   btn.setAttribute('aria-label', (running ? 'Stop ' : 'Start ') + provider + ' tunnel');
   btn.disabled = false;
 }
@@ -2833,7 +2834,8 @@ async function toggleTunnel(provider) {
       return;
     }
   }
-  btn.textContent = '...';
+  const pendingLabel = (action === 'start' ? 'Starting' : 'Stopping') + '…';
+  btn.textContent = pendingLabel;
   btn.setAttribute('aria-label', (action === 'start' ? 'Starting ' : 'Stopping ') + provider + ' tunnel');
   btn.disabled = true;
   toast('tunnel ' + provider + ': ' + action + 'ing...');
@@ -2969,7 +2971,11 @@ async function loadCatalogView() {
       + (s.enabled ? (pending ? ' pending' : ' on') : '');
     toggle.setAttribute('role', 'switch');
     toggle.setAttribute('aria-checked', String(!!s.enabled));
-    toggle.setAttribute('aria-label', 'Toggle ' + s.name + ' server');
+    // Action verb matches visible palette language (Enable/Disable), not a
+    // generic "Toggle", so screen readers and sighted UI stay consistent.
+    toggle.setAttribute(
+      'aria-label', (s.enabled ? 'Disable ' : 'Enable ') + s.name + ' server'
+    );
     toggle.setAttribute('tabindex', '0');
     toggle.title = pending ? 'On, but needs credentials to connect' : '';
     toggle.dataset.name = s.name;
@@ -3045,6 +3051,9 @@ async function toggleServerCard(name, el) {
     el.classList.remove('on', 'pending');
     if (data.enabled) el.classList.add(pending ? 'pending' : 'on');
     el.setAttribute('aria-checked', String(!!data.enabled));
+    el.setAttribute(
+      'aria-label', (data.enabled ? 'Disable ' : 'Enable ') + name + ' server'
+    );
     el.title = pending ? 'On, but needs credentials to connect' : '';
     toast(enableHint(name, !!data.enabled), data.enabled ? 'success' : '');
     buildNodes();
