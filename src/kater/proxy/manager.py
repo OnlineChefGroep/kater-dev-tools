@@ -273,18 +273,25 @@ class ProxyManager:
             compatible.append((binding, source))
         return compatible
 
-    def list_tools(self) -> list[dict[str, Any]]:
-        from kater.capabilities.discovery import CapabilityDenied, assert_invocable
+    def list_tools(self, context: Any | None = None) -> list[dict[str, Any]]:
+        from kater.capabilities.discovery import CapabilityDenied, assert_invocable, discover
+        from kater.capabilities.models import DiscoveryContext
 
-        tools = self._aggregator.for_mcp()
+        discovery_context = context if isinstance(context, DiscoveryContext) else DiscoveryContext()
+        allowed = {item.capability_id for item in discover(discovery_context)}
+        tools = [item for item in self._aggregator.for_mcp() if item["name"] in allowed]
         if self._computer_connector is not None:
-            tools = self._computer_connector.list_tools() + tools
+            tools = [
+                item
+                for item in self._computer_connector.list_tools()
+                if item["name"] in allowed
+            ] + tools
         seen = {item["name"] for item in tools}
         grouped: dict[str, list[RouteBinding]] = {}
         for binding in list_route_candidates():
             grouped.setdefault(binding.capability, []).append(binding)
         for capability, bindings in grouped.items():
-            if capability in seen or (
+            if capability not in allowed or capability in seen or (
                 self._computer_connector is not None
                 and self._computer_connector.is_reserved(capability)
             ):
