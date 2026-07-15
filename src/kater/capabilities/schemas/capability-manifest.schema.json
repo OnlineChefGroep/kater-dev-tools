@@ -9,6 +9,7 @@
     "capability_id",
     "package_id",
     "publisher_id",
+    "owner_id",
     "version",
     "digest",
     "transport",
@@ -16,6 +17,7 @@
     "input_schema",
     "output_schema",
     "required_scopes",
+    "required_credentials",
     "risk_class",
     "data_classification",
     "profiles",
@@ -35,6 +37,11 @@
     "publisher_id": {
       "type": "string",
       "minLength": 1
+    },
+    "owner_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Team or principal accountable for this capability."
     },
     "version": {
       "type": "string",
@@ -61,6 +68,11 @@
       "type": "object"
     },
     "required_scopes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "required_credentials": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
       "uniqueItems": true

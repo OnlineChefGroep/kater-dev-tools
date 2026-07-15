@@ -89,6 +89,8 @@ class CapabilityManifest:
     risk_class: RiskClass
     data_classification: str
     profiles: frozenset[str]
+    owner_id: str = "unknown"
+    required_credentials: frozenset[str] = field(default_factory=frozenset)
     healthcheck_capability_id: str | None = None
     lifecycle_state: LifecycleState = LifecycleState.ACTIVE
     rollback_version: str | None = None
@@ -106,6 +108,7 @@ class CapabilityManifest:
             raise ValueError("capability_id cannot contain '__'")
         _require_nonempty("package_id", self.package_id)
         _require_nonempty("publisher_id", self.publisher_id)
+        _require_nonempty("owner_id", self.owner_id)
         _require_nonempty("version", self.version)
         if not _SEMVER_LIKE.match(self.version):
             raise ValueError(f"version must be semver-like, got {self.version!r}")
@@ -123,6 +126,8 @@ class CapabilityManifest:
             raise ValueError("output_schema must be a dict")
         if not isinstance(self.required_scopes, frozenset):
             raise ValueError("required_scopes must be a frozenset")
+        if not isinstance(self.required_credentials, frozenset):
+            raise ValueError("required_credentials must be a frozenset")
         if not isinstance(self.profiles, frozenset):
             raise ValueError("profiles must be a frozenset")
         if not isinstance(self.tags, frozenset):

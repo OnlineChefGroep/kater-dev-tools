@@ -24,12 +24,14 @@ CREATE TABLE IF NOT EXISTS control_capabilities (
     version TEXT NOT NULL,
     package_id TEXT NOT NULL,
     publisher_id TEXT NOT NULL,
+    owner_id TEXT NOT NULL DEFAULT 'unknown',
     digest TEXT NOT NULL,
     transport TEXT NOT NULL,
     description TEXT NOT NULL,
     input_schema TEXT NOT NULL,
     output_schema TEXT NOT NULL,
     required_scopes TEXT NOT NULL,
+    required_credentials TEXT NOT NULL DEFAULT '[]',
     risk_class TEXT NOT NULL,
     data_classification TEXT NOT NULL,
     profiles TEXT NOT NULL,
@@ -60,7 +62,13 @@ _lock = threading.RLock()
 
 def _db_path() -> Path:
     configured = Path(load_settings().db_path).expanduser()
-    return configured if configured.is_absolute() else Path.cwd() / configured
+    resolved = configured.resolve() if configured.is_absolute() else (Path.cwd() / configured).resolve()
+    state_dir = (Path.cwd() / ".kater").resolve()
+    if resolved.parent != state_dir:
+        raise ValueError("capability database must be a SQLite file directly under .kater/")
+    if resolved.suffix not in {".db", ".sqlite", ".sqlite3"}:
+        raise ValueError("capability database must be a SQLite file")
+    return resolved
 
 
 def _connect() -> sqlite3.Connection:
@@ -70,6 +78,8 @@ def _connect() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.executescript(_SCHEMA)
     for column, definition in (
+        ("owner_id", "TEXT NOT NULL DEFAULT 'unknown'"),
+        ("required_credentials", "TEXT NOT NULL DEFAULT '[]'"),
         ("method", "TEXT"),
         ("path", "TEXT"),
         ("timeout_seconds", "REAL"),
@@ -157,6 +167,7 @@ def _row_to_manifest(row: sqlite3.Row) -> CapabilityManifest:
         capability_id=row["capability_id"],
         package_id=row["package_id"],
         publisher_id=row["publisher_id"],
+        owner_id=row["owner_id"],
         version=row["version"],
         digest=row["digest"] or "",
         transport=transport,
@@ -164,6 +175,7 @@ def _row_to_manifest(row: sqlite3.Row) -> CapabilityManifest:
         input_schema=_parse_schema(row["input_schema"]),
         output_schema=_parse_schema(row["output_schema"]),
         required_scopes=_parse_str_set(row["required_scopes"]),
+        required_credentials=_parse_str_set(row["required_credentials"]),
         risk_class=risk_class,
         data_classification=row["data_classification"],
         profiles=_parse_str_set(row["profiles"]),
@@ -186,21 +198,23 @@ def upsert_capability(manifest: CapabilityManifest) -> None:
     with _lock, _connect() as db:
         db.execute(
             """INSERT INTO control_capabilities
-               (capability_id, version, package_id, publisher_id, digest, transport,
-                description, input_schema, output_schema, required_scopes, risk_class,
-                data_classification, profiles, healthcheck_capability_id,
+               (capability_id, version, package_id, publisher_id, owner_id, digest, transport,
+                description, input_schema, output_schema, required_scopes, required_credentials,
+                risk_class, data_classification, profiles, healthcheck_capability_id,
                 lifecycle_state, rollback_version, network_targets, tags,
                 method, path, timeout_seconds, mutation, idempotency_required, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(capability_id, version) DO UPDATE SET
                  package_id = excluded.package_id,
                  publisher_id = excluded.publisher_id,
+                 owner_id = excluded.owner_id,
                  digest = excluded.digest,
                  transport = excluded.transport,
                  description = excluded.description,
                  input_schema = excluded.input_schema,
                  output_schema = excluded.output_schema,
                  required_scopes = excluded.required_scopes,
+                 required_credentials = excluded.required_credentials,
                  risk_class = excluded.risk_class,
                  data_classification = excluded.data_classification,
                  profiles = excluded.profiles,
@@ -217,12 +231,14 @@ def upsert_capability(manifest: CapabilityManifest) -> None:
                 manifest.version,
                 manifest.package_id,
                 manifest.publisher_id,
+                manifest.owner_id,
                 manifest.digest,
                 manifest.transport.value,
                 manifest.description,
                 json.dumps(manifest.input_schema),
                 json.dumps(manifest.output_schema),
                 _json_list(manifest.required_scopes),
+                _json_list(manifest.required_credentials),
                 manifest.risk_class.value,
                 manifest.data_classification,
                 _json_list(manifest.profiles),

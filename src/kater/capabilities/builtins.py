@@ -33,6 +33,7 @@ def _native(
         capability_id=capability_id,
         package_id=_PACKAGE_CORE,
         publisher_id=_PUBLISHER,
+        owner_id="kater-core",
         version=_VERSION,
         digest=_digest(capability_id, _VERSION),
         transport=CapabilityTransport.NATIVE,

@@ -46,7 +46,6 @@ _SCHEMA_FILENAMES = (
 
 def _load_schema_registry() -> Registry:
     registry = Registry()
-    schemas: list[tuple[str, dict[str, Any], Resource[Any]]] = []
     for filename in _SCHEMA_FILENAMES:
         try:
             schema = json.loads((_SCHEMA_DIR / filename).read_text(encoding="utf-8"))
@@ -55,13 +54,12 @@ def _load_schema_registry() -> Registry:
         if not isinstance(schema, dict) or not isinstance(schema.get("$id"), str):
             raise ContractDigestError(f"vendored schema {filename} must contain a string $id")
         resource = Resource.from_contents(schema)
-        schemas.append((filename, schema, resource))
-    bases = {schema["$id"].rsplit("/", 1)[0] + "/" for _, schema, _ in schemas}
-    for filename, schema, resource in schemas:
         registry = registry.with_resource(schema["$id"], resource)
         registry = registry.with_resource(filename, resource)
-        for base in bases:
-            registry = registry.with_resource(base + filename, resource)
+        registry = registry.with_resource(
+            "https://onlinechefgroep.nl/schemas/computer-acceptance/" + filename,
+            resource,
+        )
     return registry
 
 
@@ -180,16 +178,24 @@ class ComputerConnector:
                     workspace_generation=arguments["workspace_generation"],
                     arguments=arguments.get("arguments", {}),
                     deadline_at=arguments["deadline_at"],
-                    idempotency_key=arguments.get("idempotency_key"),
+                    idempotency_key=(
+                        arguments.get("idempotency_key")
+                        or (
+                            "idem_" + secrets.token_hex(16)
+                            if dispatch_manifest.idempotency_required
+                            else None
+                        )
+                    ),
                     request_id=request_id,
                 )
-                result = self._dispatch(dispatch_manifest, request)
-                validate_invocation_envelope(result)
-                if result["request_id"] != request["request_id"]:
-                    raise ValueError("guest response request_id mismatch")
-                if result["status"] == "succeeded":
-                    validate_schema(result["result"], dispatch_manifest.output_schema, "output")
-                return result
+            # Do not hold the lifecycle gate across blocking guest HTTP I/O.
+            result = self._dispatch(dispatch_manifest, request)
+            validate_invocation_envelope(result)
+            if result["request_id"] != request["request_id"]:
+                raise ValueError("guest response request_id mismatch")
+            if result["status"] == "succeeded":
+                validate_schema(result["result"], dispatch_manifest.output_schema, "output")
+            return result
         except PermissionError:
             return make_invocation_result(
                 {"protocol_version": "0.1.0-m0", "request_id": request_id},
@@ -270,6 +276,7 @@ def _manifest(data: dict[str, Any]) -> CapabilityManifest:
         capability_id=data["capability_id"],
         package_id="computer",
         publisher_id="udo",
+        owner_id="udo-computer",
         version=data.get("version", "1.0.0"),
         digest=digest,
         transport=CapabilityTransport.HTTP,
