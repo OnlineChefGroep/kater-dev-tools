@@ -39,6 +39,20 @@ def _scope_match(manifest: CapabilityManifest, context: DiscoveryContext) -> boo
     return context.required_scopes.issubset(manifest.required_scopes)
 
 
+def _context_match(manifest: CapabilityManifest, context: DiscoveryContext) -> bool:
+    """Apply optional manifest tag constraints for contextual authorization."""
+    dimensions = (
+        ("principal:", context.principal_id),
+        ("repository:", context.repository),
+        ("environment:", context.environment),
+    )
+    for prefix, value in dimensions:
+        constraints = {tag[len(prefix) :] for tag in manifest.tags if tag.startswith(prefix)}
+        if constraints and (value is None or value not in constraints):
+            return False
+    return True
+
+
 def _tag_match(manifest: CapabilityManifest, context: DiscoveryContext) -> bool:
     if not context.tags_any:
         return True
@@ -90,12 +104,16 @@ def discover(
             continue
         if not _scope_match(manifest, context):
             continue
+        if not _context_match(manifest, context):
+            continue
         if not _tag_match(manifest, context):
             continue
         health_ok = _health_ok(manifest, reg)
         if not health_ok and not context.include_unhealthy:
             continue
         boosted = _intent_boost(manifest, words)
+        if words and not boosted:
+            continue
         matched.append((boosted, manifest, health_ok))
 
     # Intent matches first; stable secondary sort by capability_id then version.
