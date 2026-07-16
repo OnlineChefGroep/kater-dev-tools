@@ -2236,6 +2236,10 @@ async function detailToggle(enable, btn) {
   if (fresh) openDetail(fresh);
   // Enabling something that still needs a token? Bring up the connect popup.
   if (enable && fresh && fresh.env_configured === false) promptCredentials(name);
+  if (btn) {
+    btn.textContent = originalText;
+    btn.removeAttribute('aria-busy');
+  }
 }
 
 function initCatalogSearch() {
