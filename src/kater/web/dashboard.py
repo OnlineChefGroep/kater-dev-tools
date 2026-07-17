@@ -257,7 +257,7 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
 .view-empty-link:hover { color: var(--text); }
 
 /* ── PR control (§3/§4/§6/§7) ──────────────────────────────── */
-.pr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.pr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; padding: 14px 18px; }
 .pr-card {
   border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
   background: var(--panel); display: flex; flex-direction: column; gap: 8px;
@@ -1139,7 +1139,7 @@ _VIEW_PR = r"""
           aria-label="Refresh PR list">Refresh</button>
       </div>
     </div>
-    <div class="view-scroll" style="padding:14px 18px">
+    <div class="view-scroll">
       <div class="pr-grid" id="pr-grid">
         <div class="view-empty">Loading pull requests…</div>
       </div>
