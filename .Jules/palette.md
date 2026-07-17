@@ -15,5 +15,6 @@
 **Action:** Only use roving tabindex when fully implementing the keyboard interaction model (arrows, Home, End); otherwise, stick to standard sequential tabbing.
 
 ## 2026-07-22 - [PR Control Layout Consistency & Accessible Refresh Button]
+
 **Learning:** For dynamic dashboard views that pull data from external command-line tools or external APIs (such as pull request lists), relying solely on keyboard shortcuts like 'r' to reload is not discoverable for mouse-only users. Re-structuring the view to match the standard dashboard view structure (using `.view-header` and `.view-scroll`) and providing a visible, semantic, fully keyboard-accessible 'Refresh' button greatly enhances discoverability and usability while ensuring screen readers receive a consistent navigation experience across all tabs.
 **Action:** Always maintain consistent `.view-header` structures across all dashboard views, and provide highly visible, keyboard-accessible interaction controls with proper ARIA attributes to trigger data reloads on dynamic content.

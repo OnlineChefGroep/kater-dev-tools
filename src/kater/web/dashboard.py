@@ -1133,7 +1133,8 @@ _VIEW_PR = r"""
       <span class="view-title">PR control</span>
       <div style="display:flex;align-items:center;gap:12px">
         <span class="panel-meta tnum" id="pr-count" role="status">loading PRs…</span>
-        <button class="mini-btn interactive" type="button" onclick="loadPRView()"
+        <button class="mini-btn interactive" type="button"
+          onclick="const b = this; b.disabled = true; b.textContent = 'Refreshing…'; loadPRView().finally(() => { b.disabled = false; b.textContent = 'Refresh'; })"
           aria-label="Refresh PR list">Refresh</button>
       </div>
     </div>
