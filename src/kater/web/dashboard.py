@@ -387,6 +387,7 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
 }
 .mini-btn:hover { border-color: var(--border-strong); color: var(--text); }
 .mini-btn.active { border-color: var(--accent-line); color: var(--accent); background: var(--accent-dim); }
+.pr-header-actions { display: flex; align-items: center; gap: 12px; }
 
 .server-map { flex: 1; overflow: auto; min-height: 0; }
 .route-table { width: 100%; border-collapse: collapse; }
@@ -1131,7 +1132,7 @@ _VIEW_PR = r"""
 <div class="view" id="view-pr">
     <div class="view-header">
       <span class="view-title">PR control</span>
-      <div style="display:flex;align-items:center;gap:12px">
+      <div class="pr-header-actions">
         <span class="panel-meta tnum" id="pr-count" role="status">loading PRs…</span>
         <button class="mini-btn interactive" type="button"
           onclick="const b = this; b.disabled = true; b.textContent = 'Refreshing…'; loadPRView().finally(() => { b.disabled = false; b.textContent = 'Refresh'; })"
