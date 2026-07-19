@@ -3277,9 +3277,11 @@ async function loadSettingsView() {
 
 async function loadPRView(btn) {
   const originalText = btn ? btn.textContent : '';
+  const originalAria = btn ? btn.getAttribute('aria-label') : null;
   if (btn) {
     btn.disabled = true;
     btn.textContent = 'Refreshing...';
+    if (originalAria) btn.setAttribute('aria-label', 'Refreshing pull requests...');
     btn.setAttribute('aria-busy', 'true');
   }
   const grid = document.getElementById('pr-grid');
@@ -3364,6 +3366,7 @@ async function loadPRView(btn) {
     if (btn) {
       btn.disabled = false;
       btn.textContent = originalText;
+      if (originalAria) btn.setAttribute('aria-label', originalAria);
       btn.removeAttribute('aria-busy');
     }
   }
