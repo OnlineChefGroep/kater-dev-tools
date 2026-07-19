@@ -1292,6 +1292,7 @@ let streamErrorsOnly = false;
 let catalogFilter = 'all';
 let catalogItems = [];
 let catalogLoadSeq = 0;
+let prLoadSeq = 0;
 let lastEventTotal = null;
 let lastLiveMs = 0;
 const HIST = 40;
@@ -3283,8 +3284,10 @@ async function loadPRView(btn) {
   }
   const grid = document.getElementById('pr-grid');
   const count = document.getElementById('pr-count');
+  const seq = ++prLoadSeq;
   try {
     const data = await api('/api/pr/list?state=open&limit=30');
+    if (seq !== prLoadSeq) return;  // superseded by a newer refresh; ignore stale response
     const pulls = data.pulls || [];
     const total = data.count ?? pulls.length;
     count.textContent = total + ' open PR' + (total === 1 ? '' : 's');
@@ -3349,6 +3352,7 @@ async function loadPRView(btn) {
       grid.appendChild(card);
     }
   } catch (e) {
+    if (seq !== prLoadSeq) return;  // superseded by a newer refresh; ignore stale error
     count.textContent = 'PR list unavailable';
     grid.textContent = '';
     const empty = document.createElement('div');
