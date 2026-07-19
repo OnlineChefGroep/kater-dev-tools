@@ -13,3 +13,7 @@
 ## 2025-07-20 - [Keyboard-Safe ARIA Tabs]
 **Learning:** Implementing 'roving tabindex' (tabindex="-1" for inactive tabs) without custom arrow-key event listeners breaks keyboard navigation. For simple tabbed interfaces, maintaining `tabindex="0"` on all tabs preserves default sequential navigation while still benefiting from ARIA semantic roles.
 **Action:** Only use roving tabindex when fully implementing the keyboard interaction model (arrows, Home, End); otherwise, stick to standard sequential tabbing.
+
+## 2026-07-25 - [Standardized Async Views and Live Reloading]
+**Learning:** Standardizing asynchronous data-loading views to follow a standard layout (e.g., using header and scrollable containers) ensures visual and behavioral consistency. Providing a manual reload trigger with an explicit, accessible button satisfies keyboard users, while using `role="status"` on results or loading states keeps screen readers actively informed of background transitions.
+**Action:** Always wrap async list views in consistent layout containers with an accessible manual reload button, applying `role="status"` and state-aware loading feedback.
