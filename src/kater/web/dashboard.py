@@ -3286,7 +3286,8 @@ async function loadPRView(btn) {
   try {
     const data = await api('/api/pr/list?state=open&limit=30');
     const pulls = data.pulls || [];
-    count.textContent = data.count + ' open PR' + (data.count === 1 ? '' : 's');
+    const total = data.count ?? pulls.length;
+    count.textContent = total + ' open PR' + (total === 1 ? '' : 's');
     grid.textContent = '';
     if (!pulls.length) {
       const empty = document.createElement('div');
