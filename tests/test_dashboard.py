@@ -19,6 +19,7 @@ from kater.web.dashboard import (
     _VIEW_DASHBOARD,
     _VIEW_DEPLOY,
     _VIEW_EVALS,
+    _VIEW_PR,
     _VIEW_SETTINGS,
 )
 
@@ -137,7 +138,7 @@ def test_catalog_count_is_status_region_not_describedby():
     # aria-describedby on the search box caused mid-keystroke chatter.
     html = render_dashboard()
     assert 'id="catalog-count" role="status"' in html
-    assert "aria-describedby=\"catalog-count\"" not in html
+    assert 'aria-describedby="catalog-count"' not in html
     assert "aria-describedby='catalog-count'" not in html
     # Pluralization contract used by the status region.
     assert "serverCount === 1 ? '1 server'" in html
@@ -179,7 +180,7 @@ def test_copy_deploy_code_guards_reentrancy_and_gives_feedback():
     assert "function copyDeployCode(btn)" in html
     assert "if (btn.dataset.copying) return;" in html
     assert "btn.textContent = 'Copied!';" in html
-    assert "onclick=\"copyDeployCode(this)\"" in html
+    assert 'onclick="copyDeployCode(this)"' in html
 
 
 def test_mobile_hides_tab_shortcut_hints():
@@ -197,3 +198,16 @@ def test_pr_tab_does_not_claim_digit_shortcut():
     assert 'tab-label">PR control</span> <span class="tab-kbd">' not in html
     # Digit map still excludes PR.
     assert "['dashboard', 'catalog', 'evals', 'deploy', 'settings']" in html
+
+
+def test_pr_view_has_header_scroll_and_status():
+    # Verify the PR view conforms to standard layout with .view-header,
+    # .view-scroll, the Refresh button, and accessible role="status".
+    html = render_dashboard()
+    assert 'class="view-header"' in _VIEW_PR
+    assert 'class="view-scroll"' in _VIEW_PR
+    assert 'class="pr-container"' in _VIEW_PR
+    assert 'id="btn-pr-refresh"' in _VIEW_PR
+    assert 'role="status"' in _VIEW_PR
+    assert 'id="btn-pr-refresh"' in html
+    assert 'role="status"' in html

@@ -257,7 +257,7 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
 .view-empty-link:hover { color: var(--text); }
 
 /* ── PR control (§3/§4/§6/§7) ──────────────────────────────── */
-#view-pr { padding: 14px 18px 0; gap: 14px; display: flex; flex-direction: column; }
+.pr-container { padding: 14px 18px 0; gap: 14px; display: flex; flex-direction: column; }
 .pr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
 .pr-card {
   border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
@@ -1129,10 +1129,19 @@ _VIEW_SETTINGS = r"""
 """
 
 _VIEW_PR = r"""
-<div class="view" id="view-pr">
-    <div class="panel-meta tnum" id="pr-count">loading PRs…</div>
-    <div class="pr-grid" id="pr-grid">
-      <div class="view-empty">Loading pull requests…</div>
+  <div class="view" id="view-pr">
+    <div class="view-header">
+      <span class="view-title">PR control</span>
+      <button class="mini-btn interactive" id="btn-pr-refresh" type="button"
+        onclick="loadPRView()" aria-label="Refresh pull requests">Refresh</button>
+    </div>
+    <div class="view-scroll">
+      <div class="pr-container">
+        <div class="panel-meta tnum" id="pr-count" role="status">loading PRs…</div>
+        <div class="pr-grid" id="pr-grid">
+          <div class="view-empty" role="status">Loading pull requests…</div>
+        </div>
+      </div>
     </div>
   </div>
 """
