@@ -15,5 +15,6 @@
 **Action:** Only use roving tabindex when fully implementing the keyboard interaction model (arrows, Home, End); otherwise, stick to standard sequential tabbing.
 
 ## 2026-07-20 - [Standard View Layout and Reload Actions]
+
 **Learning:** For asynchronous dashboard views like pull request control panels, maintaining structural layout parity (.view-header, .view-scroll) improves consistency, and integrating an explicit manual reload action (Refresh) with WAI-ARIA status readouts (role="status") guarantees accessible dynamic updates for screen reader users.
 **Action:** Always follow standard layout classes for custom views, and pair asynchronous loading triggers with keyboard-accessible triggers and status region announcements.

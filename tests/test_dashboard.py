@@ -94,6 +94,7 @@ def test_each_view_is_present_via_its_own_seam():
         ("view-evals", _VIEW_EVALS),
         ("view-deploy", _VIEW_DEPLOY),
         ("view-settings", _VIEW_SETTINGS),
+        ("view-pr", _VIEW_PR),
     ]:
         assert f'id="{view_id}"' in const, view_id
         assert const in _HTML, view_id
