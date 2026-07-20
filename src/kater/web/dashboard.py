@@ -1288,6 +1288,7 @@ let streamErrorsOnly = false;
 let catalogFilter = 'all';
 let catalogItems = [];
 let catalogLoadSeq = 0;
+let prLoadSeq = 0;
 let lastEventTotal = null;
 let lastLiveMs = 0;
 const HIST = 40;
@@ -3273,15 +3274,18 @@ async function loadSettingsView() {
 async function loadPRView() {
   const grid = document.getElementById('pr-grid');
   const count = document.getElementById('pr-count');
+  const seq = ++prLoadSeq;
   let data;
   try {
     data = await api('/api/pr/list?state=open&limit=30');
   } catch (e) {
+    if (seq !== prLoadSeq) return;  // superseded by a newer refresh; ignore stale error
     count.textContent = 'PR list unavailable';
     grid.innerHTML = '<div class="view-empty">PR control needs the gh CLI and a GitHub token. ' +
       'Run `kater pr` tools or check the server environment.</div>';
     return;
   }
+  if (seq !== prLoadSeq) return;  // superseded by a newer refresh; ignore stale response
   const pulls = data.pulls || [];
   count.textContent = data.count + ' open PR' + (data.count === 1 ? '' : 's');
   grid.innerHTML = '';
