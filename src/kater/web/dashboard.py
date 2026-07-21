@@ -586,7 +586,6 @@ select:focus-visible, [role="switch"]:focus-visible, [tabindex]:focus-visible {
 }
 .view-empty-link {
   display: inline-block; margin-top: 12px;
-  background: none; border: 0; padding: 0; font: inherit;
   color: var(--accent); text-decoration: none; cursor: pointer;
 }
 .view-empty-link:hover { text-decoration: underline; }
@@ -1664,13 +1663,14 @@ function renderCatalog() {
       })
     : list;
 
-  if (count) count.textContent = filtered.length + ' / ' + list.length + ' servers';
+  if (count) count.textContent = filtered.length + ' / ' + list.length;
 
   if (filtered.length === 0) {
     let emptyMsg = '<div class="empty-note">No matching servers.';
     if (q) {
-      emptyMsg += ' <button type="button" class="view-empty-link" ' +
-        'onclick="clearCatalogSearch()">Clear search</button>';
+      emptyMsg += ' <a class="view-empty-link" role="button" tabindex="0" ' +
+        'onclick="clearCatalogSearch()" onkeydown="btnKey(event,clearCatalogSearch)">' +
+        'Clear search</a>';
     }
     emptyMsg += '</div>';
     grid.innerHTML = emptyMsg;
@@ -1712,7 +1712,6 @@ function renderCatalog() {
 }
 
 function clearCatalogSearch() {
-  if (catalogSearchTimer) { clearTimeout(catalogSearchTimer); catalogSearchTimer = null; }
   catalogQuery = '';
   const search = $('catalog-search');
   if (search) { search.value = ''; search.focus(); }
