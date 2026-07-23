@@ -181,16 +181,35 @@ def test_client_pr_list_parses_gh_output() -> None:
 
 
 def test_client_pr_view_passes_number() -> None:
-    captured: dict[str, Any] = {}
+    calls: list[list[str]] = []
 
     def fake_runner(args: list[str]) -> Any:
-        captured["args"] = args
+        calls.append(args)
+        if args[:2] == ["api", "graphql"]:
+            payload = {
+                "data": {
+                    "repository": {
+                        "pullRequest": {
+                            "reviewThreads": {"nodes": [{"isResolved": True}]}
+                        }
+                    }
+                }
+            }
+            return SimpleNamespace(
+                returncode=0, stdout=__import__("json").dumps(payload), stderr=""
+            )
         return SimpleNamespace(returncode=0, stdout=__import__("json").dumps(_pr()), stderr="")
 
     client = GitHubPRClient(runner=fake_runner)
     pr = client.pull_request(42)
     assert pr["number"] == 42
-    assert str(42) in captured["args"]
+    view_args = calls[0]
+    assert str(42) in view_args
+    # reviewThreads/baseRefOid are not valid `gh pr view --json` fields.
+    assert "reviewThreads" not in " ".join(view_args)
+    graphql_args = calls[1]
+    assert "number=42" in " ".join(graphql_args)
+    assert pr["reviewThreads"] == [{"isResolved": True}]
 
 
 def test_client_api_error_raises() -> None:

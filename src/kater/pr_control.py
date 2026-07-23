@@ -243,6 +243,8 @@ class GitHubPRClient:
         return json.loads(proc.stdout)
 
     def pull_request(self, number: int) -> dict[str, Any]:
+        # ``reviewThreads`` and ``baseRefOid`` are not exposed by ``gh pr view
+        # --json`` on current gh releases; threads are fetched via GraphQL below.
         args = [
             "pr",
             "view",
@@ -251,7 +253,7 @@ class GitHubPRClient:
             (
                 "number,title,headRefName,baseRefName,state,url,"
                 "isDraft,mergeable,reviewDecision,statusCheckRollup,"
-                "reviewThreads,commits,baseRefOid,headRefOid"
+                "commits,headRefOid"
             ),
         ]
         if self.repo:
@@ -259,7 +261,57 @@ class GitHubPRClient:
         proc = self.runner(args)
         if proc.returncode != 0:
             raise RuntimeError(f"gh pr view {number} failed: {proc.stderr.strip()}")
-        return json.loads(proc.stdout)
+        pr = json.loads(proc.stdout)
+        pr["reviewThreads"] = self._review_threads(number, pr.get("url") or "")
+        return pr
+
+    def _review_threads(self, number: int, url: str) -> list[dict[str, Any]]:
+        """Fetch review threads via GraphQL (fail-closed on errors).
+
+        The gate blocks on unresolved threads, so a failed lookup must raise
+        rather than silently report zero open threads.
+        """
+        repo = self.repo
+        if not repo and url.startswith("https://github.com/"):
+            parts = url.removeprefix("https://github.com/").split("/")
+            if len(parts) >= 2:
+                repo = f"{parts[0]}/{parts[1]}"
+        if not repo or "/" not in repo:
+            raise RuntimeError(
+                f"cannot resolve owner/repo for PR {number} review threads"
+            )
+        owner, name = repo.split("/", 1)
+        query = (
+            "query($owner:String!,$name:String!,$number:Int!){"
+            "repository(owner:$owner,name:$name){pullRequest(number:$number){"
+            "reviewThreads(first:100){nodes{isResolved}}}}}"
+        )
+        proc = self.runner(
+            [
+                "api",
+                "graphql",
+                "-f",
+                f"query={query}",
+                "-f",
+                f"owner={owner}",
+                "-f",
+                f"name={name}",
+                "-F",
+                f"number={number}",
+            ]
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"gh api graphql reviewThreads for PR {number} failed: "
+                f"{proc.stderr.strip()}"
+            )
+        data = json.loads(proc.stdout)
+        nodes = (
+            (((data.get("data") or {}).get("repository") or {}).get("pullRequest") or {})
+            .get("reviewThreads", {})
+            .get("nodes", [])
+        )
+        return [{"isResolved": bool(n.get("isResolved"))} for n in nodes or []]
 
     def is_base_protected(self, base_ref: str) -> bool:
         if not self.repo:
