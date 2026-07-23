@@ -262,14 +262,25 @@ class GitHubPRClient:
         if proc.returncode != 0:
             raise RuntimeError(f"gh pr view {number} failed: {proc.stderr.strip()}")
         pr = json.loads(proc.stdout)
-        pr["reviewThreads"] = self._review_threads(number, pr.get("url") or "")
+        base_ref_oid, threads = self._graphql_pr_details(number, pr.get("url") or "")
+        pr["reviewThreads"] = threads
+        pr["baseRefOid"] = base_ref_oid
         return pr
 
-    def _review_threads(self, number: int, url: str) -> list[dict[str, Any]]:
-        """Fetch review threads via GraphQL (fail-closed on errors).
+    def _graphql_pr_details(
+        self, number: int, url: str
+    ) -> tuple[str, list[dict[str, Any]]]:
+        """Fetch base commit SHA and all review threads via GraphQL (fail-closed).
 
-        The gate blocks on unresolved threads, so a failed lookup must raise
-        rather than silently report zero open threads.
+        The gate blocks on unresolved threads, so any failed lookup must raise
+        rather than silently report zero open threads. This covers three cases:
+
+        * a non-zero ``gh`` exit,
+        * a top-level GraphQL ``errors`` payload (which ships with exit 0), and
+        * missing ``data``/``pullRequest`` objects.
+
+        Review threads are paginated (100 per page) so PRs with more than 100
+        threads are fully inspected instead of silently truncated.
         """
         repo = self.repo
         if not repo and url.startswith("https://github.com/"):
@@ -282,12 +293,16 @@ class GitHubPRClient:
             )
         owner, name = repo.split("/", 1)
         query = (
-            "query($owner:String!,$name:String!,$number:Int!){"
+            "query($owner:String!,$name:String!,$number:Int!,$after:String){"
             "repository(owner:$owner,name:$name){pullRequest(number:$number){"
-            "reviewThreads(first:100){nodes{isResolved}}}}}"
+            "baseRefOid reviewThreads(first:100,after:$after){"
+            "nodes{isResolved}pageInfo{hasNextPage endCursor}}}}}"
         )
-        proc = self.runner(
-            [
+        base_ref_oid = ""
+        threads: list[dict[str, Any]] = []
+        after: str | None = None
+        while True:
+            gql_args = [
                 "api",
                 "graphql",
                 "-f",
@@ -299,19 +314,41 @@ class GitHubPRClient:
                 "-F",
                 f"number={number}",
             ]
-        )
-        if proc.returncode != 0:
-            raise RuntimeError(
-                f"gh api graphql reviewThreads for PR {number} failed: "
-                f"{proc.stderr.strip()}"
-            )
-        data = json.loads(proc.stdout)
-        nodes = (
-            (((data.get("data") or {}).get("repository") or {}).get("pullRequest") or {})
-            .get("reviewThreads", {})
-            .get("nodes", [])
-        )
-        return [{"isResolved": bool(n.get("isResolved"))} for n in nodes or []]
+            if after:
+                gql_args += ["-f", f"after={after}"]
+            proc = self.runner(gql_args)
+            if proc.returncode != 0:
+                raise RuntimeError(
+                    f"gh api graphql reviewThreads for PR {number} failed: "
+                    f"{proc.stderr.strip()}"
+                )
+            data = json.loads(proc.stdout)
+            # GraphQL reports errors with a successful (0) process exit, so an
+            # error payload must fail closed rather than read as zero threads.
+            if data.get("errors"):
+                raise RuntimeError(
+                    f"gh api graphql reviewThreads for PR {number} returned "
+                    f"errors: {data['errors']}"
+                )
+            payload = data.get("data")
+            pr_node = ((payload or {}).get("repository") or {}).get("pullRequest")
+            if not payload or pr_node is None:
+                raise RuntimeError(
+                    f"gh api graphql reviewThreads for PR {number} returned no "
+                    "pull request data"
+                )
+            if not base_ref_oid:
+                base_ref_oid = pr_node.get("baseRefOid") or ""
+            review_threads = pr_node.get("reviewThreads") or {}
+            nodes = review_threads.get("nodes") or []
+            threads += [{"isResolved": bool(n.get("isResolved"))} for n in nodes]
+            page_info = review_threads.get("pageInfo") or {}
+            if not page_info.get("hasNextPage"):
+                break
+            after = page_info.get("endCursor")
+            if not after:
+                break
+        return base_ref_oid, threads
 
     def is_base_protected(self, base_ref: str) -> bool:
         if not self.repo:

@@ -212,6 +212,108 @@ def test_client_pr_view_passes_number() -> None:
     assert pr["reviewThreads"] == [{"isResolved": True}]
 
 
+def test_client_pr_view_paginates_review_threads() -> None:
+    # A PR with more than 100 threads spans multiple GraphQL pages; every page
+    # must be inspected so an unresolved thread past the first page still blocks.
+    graphql_calls: list[list[str]] = []
+
+    def fake_runner(args: list[str]) -> Any:
+        if args[:2] == ["api", "graphql"]:
+            graphql_calls.append(args)
+            joined = " ".join(args)
+            if "after=" not in joined:
+                page = {
+                    "data": {
+                        "repository": {
+                            "pullRequest": {
+                                "baseRefOid": "base000",
+                                "reviewThreads": {
+                                    "nodes": [{"isResolved": True}],
+                                    "pageInfo": {
+                                        "hasNextPage": True,
+                                        "endCursor": "CURSOR1",
+                                    },
+                                },
+                            }
+                        }
+                    }
+                }
+            else:
+                assert "after=CURSOR1" in joined
+                page = {
+                    "data": {
+                        "repository": {
+                            "pullRequest": {
+                                "baseRefOid": "base000",
+                                "reviewThreads": {
+                                    "nodes": [{"isResolved": False}],
+                                    "pageInfo": {
+                                        "hasNextPage": False,
+                                        "endCursor": None,
+                                    },
+                                },
+                            }
+                        }
+                    }
+                }
+            return SimpleNamespace(
+                returncode=0, stdout=__import__("json").dumps(page), stderr=""
+            )
+        return SimpleNamespace(returncode=0, stdout=__import__("json").dumps(_pr()), stderr="")
+
+    client = GitHubPRClient(runner=fake_runner)
+    pr = client.pull_request(42)
+    assert len(graphql_calls) == 2
+    assert pr["reviewThreads"] == [{"isResolved": True}, {"isResolved": False}]
+    assert pr["baseRefOid"] == "base000"
+
+
+def test_client_pr_view_graphql_errors_fail_closed() -> None:
+    # GraphQL reports errors with a 0 exit code; the gate must fail closed
+    # rather than treat the response as zero unresolved threads.
+    def fake_runner(args: list[str]) -> Any:
+        if args[:2] == ["api", "graphql"]:
+            payload = {"data": None, "errors": [{"type": "FORBIDDEN", "message": "nope"}]}
+            return SimpleNamespace(
+                returncode=0, stdout=__import__("json").dumps(payload), stderr=""
+            )
+        return SimpleNamespace(returncode=0, stdout=__import__("json").dumps(_pr()), stderr="")
+
+    client = GitHubPRClient(runner=fake_runner)
+    try:
+        client.pull_request(42)
+    except RuntimeError as exc:
+        assert "errors" in str(exc)
+    else:
+        raise AssertionError("expected RuntimeError on GraphQL error payload")
+
+
+def test_client_pr_view_populates_base_ref_oid() -> None:
+    def fake_runner(args: list[str]) -> Any:
+        if args[:2] == ["api", "graphql"]:
+            payload = {
+                "data": {
+                    "repository": {
+                        "pullRequest": {
+                            "baseRefOid": "basedeadbeef",
+                            "reviewThreads": {"nodes": [], "pageInfo": {}},
+                        }
+                    }
+                }
+            }
+            return SimpleNamespace(
+                returncode=0, stdout=__import__("json").dumps(payload), stderr=""
+            )
+        return SimpleNamespace(returncode=0, stdout=__import__("json").dumps(_pr()), stderr="")
+
+    from kater.pr_control import _summarize_pr
+
+    client = GitHubPRClient(runner=fake_runner)
+    pr = client.pull_request(42)
+    assert pr["baseRefOid"] == "basedeadbeef"
+    assert _summarize_pr(pr)["base_sha"] == "basedeadbeef"
+
+
 def test_client_api_error_raises() -> None:
     def fake_runner(args: list[str]) -> Any:
         return SimpleNamespace(returncode=1, stdout="", stderr="boom")
