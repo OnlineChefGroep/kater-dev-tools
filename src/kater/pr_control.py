@@ -347,7 +347,12 @@ class GitHubPRClient:
                 break
             after = page_info.get("endCursor")
             if not after:
-                break
+                # A truthy hasNextPage with no cursor would silently truncate
+                # the thread list; fail closed rather than under-report threads.
+                raise RuntimeError(
+                    f"gh api graphql reviewThreads for PR {number} reported "
+                    "hasNextPage without an endCursor"
+                )
         return base_ref_oid, threads
 
     def is_base_protected(self, base_ref: str) -> bool:

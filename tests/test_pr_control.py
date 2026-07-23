@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 from typing import Any
 
@@ -171,7 +172,7 @@ def test_client_pr_list_parses_gh_output() -> None:
     def fake_runner(args: list[str]) -> Any:
         captured["args"] = args
         payload = [_pr(), _pr(number=43, reviewDecision="REVIEW_REQUIRED")]
-        return SimpleNamespace(returncode=0, stdout=__import__("json").dumps(payload), stderr="")
+        return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
 
     client = GitHubPRClient(runner=fake_runner)
     rows = client.list_pull_requests(limit=10)
@@ -196,9 +197,9 @@ def test_client_pr_view_passes_number() -> None:
                 }
             }
             return SimpleNamespace(
-                returncode=0, stdout=__import__("json").dumps(payload), stderr=""
+                returncode=0, stdout=json.dumps(payload), stderr=""
             )
-        return SimpleNamespace(returncode=0, stdout=__import__("json").dumps(_pr()), stderr="")
+        return SimpleNamespace(returncode=0, stdout=json.dumps(_pr()), stderr="")
 
     client = GitHubPRClient(runner=fake_runner)
     pr = client.pull_request(42)
@@ -257,9 +258,9 @@ def test_client_pr_view_paginates_review_threads() -> None:
                     }
                 }
             return SimpleNamespace(
-                returncode=0, stdout=__import__("json").dumps(page), stderr=""
+                returncode=0, stdout=json.dumps(page), stderr=""
             )
-        return SimpleNamespace(returncode=0, stdout=__import__("json").dumps(_pr()), stderr="")
+        return SimpleNamespace(returncode=0, stdout=json.dumps(_pr()), stderr="")
 
     client = GitHubPRClient(runner=fake_runner)
     pr = client.pull_request(42)
@@ -275,9 +276,9 @@ def test_client_pr_view_graphql_errors_fail_closed() -> None:
         if args[:2] == ["api", "graphql"]:
             payload = {"data": None, "errors": [{"type": "FORBIDDEN", "message": "nope"}]}
             return SimpleNamespace(
-                returncode=0, stdout=__import__("json").dumps(payload), stderr=""
+                returncode=0, stdout=json.dumps(payload), stderr=""
             )
-        return SimpleNamespace(returncode=0, stdout=__import__("json").dumps(_pr()), stderr="")
+        return SimpleNamespace(returncode=0, stdout=json.dumps(_pr()), stderr="")
 
     client = GitHubPRClient(runner=fake_runner)
     try:
@@ -302,9 +303,9 @@ def test_client_pr_view_populates_base_ref_oid() -> None:
                 }
             }
             return SimpleNamespace(
-                returncode=0, stdout=__import__("json").dumps(payload), stderr=""
+                returncode=0, stdout=json.dumps(payload), stderr=""
             )
-        return SimpleNamespace(returncode=0, stdout=__import__("json").dumps(_pr()), stderr="")
+        return SimpleNamespace(returncode=0, stdout=json.dumps(_pr()), stderr="")
 
     from kater.pr_control import _summarize_pr
 
@@ -312,6 +313,24 @@ def test_client_pr_view_populates_base_ref_oid() -> None:
     pr = client.pull_request(42)
     assert pr["baseRefOid"] == "basedeadbeef"
     assert _summarize_pr(pr)["base_sha"] == "basedeadbeef"
+
+
+def test_client_pr_view_unresolvable_repo_fails_closed() -> None:
+    # Without a configured repo and with a URL that yields no owner/repo, the
+    # review-thread lookup must fail closed instead of skipping the gate.
+    def fake_runner(args: list[str]) -> Any:
+        if args[:2] == ["api", "graphql"]:
+            raise AssertionError("graphql should not be reached")
+        return SimpleNamespace(returncode=0, stdout=json.dumps(_pr(url="")), stderr="")
+
+    client = GitHubPRClient(runner=fake_runner)
+    client.repo = None
+    try:
+        client.pull_request(42)
+    except RuntimeError as exc:
+        assert "cannot resolve owner/repo" in str(exc)
+    else:
+        raise AssertionError("expected RuntimeError when owner/repo is unresolvable")
 
 
 def test_client_api_error_raises() -> None:
@@ -347,7 +366,7 @@ def test_summarize_pr_aggregates_threads_and_checks() -> None:
 
 def test_gate_for_pr_blocks_on_unresolved_threads() -> None:
     def fake_runner(args: list[str]) -> Any:
-        return SimpleNamespace(returncode=0, stdout=__import__("json").dumps(_pr()), stderr="")
+        return SimpleNamespace(returncode=0, stdout=json.dumps(_pr()), stderr="")
 
     client = GitHubPRClient(runner=fake_runner)
     pr = _pr(reviewThreads=[{"isResolved": False}])
@@ -361,7 +380,7 @@ def test_tools_read_only_no_subprocess(monkeypatch) -> None:
 
     def fake_runner(args: list[str]) -> Any:
         calls.append(args)
-        return SimpleNamespace(returncode=0, stdout=__import__("json").dumps([_pr()]), stderr="")
+        return SimpleNamespace(returncode=0, stdout=json.dumps([_pr()]), stderr="")
 
     monkeypatch.setattr("kater.pr_control.GitHubPRClient.__init__", lambda self, **kw: None)
     monkeypatch.setattr(
