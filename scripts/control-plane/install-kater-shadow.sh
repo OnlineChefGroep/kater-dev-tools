@@ -103,7 +103,7 @@ install_uv() {
 
 build_venv() {
   cd "$install_root"
-  /usr/local/bin/uv sync --no-dev --production
+  /usr/local/bin/uv sync --no-dev
   chown -R kater-svc:kater-svc "$install_root/.venv"
 }
 
