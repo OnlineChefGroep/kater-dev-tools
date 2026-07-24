@@ -1,0 +1,59 @@
+[Unit]
+Description=ChefGroep Kater gateway shadow (company-control, tailnet/loopback)
+Documentation=https://github.com/OnlineChefGroep/kater-dev-tools
+After=network-online.target tailscaled.service
+Wants=network-online.target
+Requires=tailscaled.service
+Conflicts=kater.service chef-kater.service
+Before=chef-kater.service
+
+[Service]
+Type=simple
+User=kater-svc
+Group=kater-svc
+WorkingDirectory=/opt/chef/services/kater
+EnvironmentFile=-/etc/chef/kater/kater.env
+EnvironmentFile=-/etc/chef/kater/secrets.env
+Environment=KATER_PUBLIC=0
+Environment=KATER_AUTH_MODE=none
+Environment=KATER_PROXY=0
+Environment=KATER_HOST=127.0.0.1
+Environment=KATER_PROFILE=ops,cloud,research,code,web
+ExecStartPre=/opt/chef/services/kater/.venv/bin/kater doctor --profile ops,cloud,research,code,web
+ExecStart=/opt/chef/services/kater/.venv/bin/kater serve \
+  --profile ops,cloud,research,code,web \
+  --host 127.0.0.1 \
+  --mcp-port 9090 \
+  --api-port 9091 \
+  --ws-port 9092 \
+  --no-proxy
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=120
+TimeoutStopSec=30
+KillMode=mixed
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+UMask=0077
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost link-local 100.64.0.0/10
+ReadWritePaths=/var/lib/chef/kater /opt/chef/services/kater/.kater
+RuntimeDirectory=chef/kater
+StateDirectory=chef/kater
+LogsDirectory=chef/kater
+
+[Install]
+WantedBy=multi-user.target
